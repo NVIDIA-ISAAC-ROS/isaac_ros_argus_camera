@@ -38,6 +38,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "camera_info_manager/camera_info_manager.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include "isaac_ros_common/vpi_utilities.hpp"
 #include "image_transport/image_transport.hpp"
@@ -334,6 +335,11 @@ private:
     "Currently supported: 'rgb8' or 'mono8' (Default: 'mono8')";
   this->declare_parameter("output_encoding", std::string{"mono8"}, output_encoding_description);
 
+  auto camera_info_url_descriptor = rcl_interfaces::msg::ParameterDescriptor{};
+  camera_info_url_descriptor.description = "URL string for camera info file";
+  camera_info_url_descriptor.read_only = true;
+  this->declare_parameter("camera_info_url", "", camera_info_url_descriptor);
+
   // Set up Argus API Framework, identify available camera devices, and create a capture session for
   // the selected device and sensor mode
   uint32_t device_index, sensor_index, dvc_idx = 0, snsr_idx;
@@ -412,15 +418,41 @@ private:
     i_sensor_mode->getResolution().width(),
     i_sensor_mode->getResolution().height());
 
-  // Geting camera calibration data and putting it into sensor_msgs.camera_info
-  const Argus::Ext::ISyncSensorCalibrationData * sync_sensor_calibration_data =
-    Argus::interface_cast<const Argus::Ext::ISyncSensorCalibrationData>(device);
-  camerainfo_ = sensor_msgs::msg::CameraInfo::SharedPtr(new sensor_msgs::msg::CameraInfo());
   image_ = sensor_msgs::msg::Image::SharedPtr(new sensor_msgs::msg::Image());
-  if (sync_sensor_calibration_data) {
-    getCalibrationData(sync_sensor_calibration_data, camerainfo_);
+
+  std::string camera_info_url;
+  this->get_parameter("camera_info_url", camera_info_url);
+
+  if (camera_info_url.empty()) {
+    // Geting camera calibration data from camera and put it into sensor_msgs.camera_info
+    const Argus::Ext::ISyncSensorCalibrationData * sync_sensor_calibration_data =
+      Argus::interface_cast<const Argus::Ext::ISyncSensorCalibrationData>(device);
+    camerainfo_ = sensor_msgs::msg::CameraInfo::SharedPtr(new sensor_msgs::msg::CameraInfo());
+    if (sync_sensor_calibration_data) {
+      getCalibrationData(sync_sensor_calibration_data, camerainfo_);
+    } else {
+      RCLCPP_WARN(this->get_logger(), "Cannot get ISyncSensorCalibrationData interface\n");
+    }
   } else {
-    RCLCPP_INFO(this->get_logger(), "Cannot get ISyncSensorCalibrationData interface\n");
+    // Load camera info with calibration data from the URL
+    std::string camera_name = camera_info_url.substr(camera_info_url.find_last_of("/\\") + 1);
+    camera_name = camera_name.substr(0, camera_name.find_last_of("."));
+
+    camera_info_manager::CameraInfoManager cinfo(this, camera_name, camera_info_url);
+    if (cinfo.validateURL(camera_info_url)) {
+      if (cinfo.isCalibrated()) {
+        camerainfo_ =
+          sensor_msgs::msg::CameraInfo::SharedPtr(
+          new sensor_msgs::msg::CameraInfo(
+            cinfo.
+            getCameraInfo()));
+      } else {
+        RCLCPP_ERROR(this->get_logger(), "Camera info %s not calibrated", camera_name.c_str());
+      }
+    } else {
+      RCLCPP_ERROR(
+        this->get_logger(), "Unable to validate camera info URL: %s", camera_info_url.c_str());
+    }
   }
 
   Argus::UniqueObj<Argus::CaptureSession> capture_session(camera_provider->createCaptureSession(
