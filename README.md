@@ -79,6 +79,8 @@ The [Leopard Imaging](https://www.leopardimaging.com/product/) NVIDIA camera par
 | `device_index`    | The video node index (e.g. `/dev/video0`)                              |
 | `sensor_index`    | The sensor mode supported by the camera sensor and driver              |
 | `output_encoding` | The output image format.  `mono8 ` and `rgb8 ` are currently supported |
+| `camera_info_url` | URL for camera info YAML file which overrides Argus Ext calibration parameter if specified (e.g. `file:///home/admin/.ros/camera_info/camerav2.yml`) |
+
 
 ### isaac_ros_argus_camera_stereo
 
@@ -108,6 +110,10 @@ Argus nodes use the Argus Ext API to retrieve calibration parameters from the ca
 Refer to [link](https://docs.nvidia.com/jetson/l4t-multimedia/classArgus_1_1Ext_1_1ISyncSensorCalibrationData.html) for the data structure of the calibration parameters. 
 
 **Note**: Each camera module should have stored the calibration parameters in the internal memory like EEPROM and the device driver supports the API to extract it. Contact your camera vendor to get the driver that supports it.
+
+If your camera does not support the Argus Ext API, you can also specify a URL to a camera info YAML file parseable by ROS [CameraInfoManager](http://wiki.ros.org/camera_info_manager) using the `camera_info_url` parameter on the `isaac_ros_argus_camera_mono` node. This will allow you to provide parameters you may have calibrated using the ROS [Camera Calibration](http://wiki.ros.org/camera_calibration) package, for example.
+
+**Note**: The `camera_info_url` parameter is only available on the `isaac_ros_argus_camera_mono` node at present.
 
 ## Troubleshooting
 ### Argus camera nodes could stop publishing images sometimes when used with 4K high-resolution cameras in certain graph configurations on FastRTPS

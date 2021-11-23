@@ -17,12 +17,13 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
   <description>Support for Argus Monocular Camera</description>
 
   <maintainer email="glo@nvidia.com">Greg Lo</maintainer>
-  <license>JetPack EULA</license>
-  <url type="website">https://developer.nvidia.com/blog/accelerating-ai-modules-for-ros-and-ros-2-on-jetson/</url>
+  <license>NVIDIA Isaac ROS Software License</license>
+  <url type="website">https://developer.nvidia.com/isaac-ros-gems/</url>
   <author>Shashank Kumar</author>
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
+  <depend>camera_info_manager</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>  
   <depend>isaac_ros_common</depend>

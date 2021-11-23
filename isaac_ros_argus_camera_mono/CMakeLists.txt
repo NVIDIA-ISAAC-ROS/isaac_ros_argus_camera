@@ -26,6 +26,7 @@ message(STATUS "Architecture: ${ARCHITECTURE}")
 
 find_package(rclcpp REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
+find_package(camera_info_manager REQUIRED)
 ament_auto_find_build_dependencies()
 
 # Only build Argus nodes on Jetson platform
@@ -80,7 +81,7 @@ endif()
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
 
-  # Ignore copyright notices since we use custom JetPack EULA
+  # Ignore copyright notices since we use custom NVIDIA Isaac ROS Software License
   set(ament_cmake_copyright_FOUND TRUE)
 
   ament_lint_auto_find_test_dependencies()
