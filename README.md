@@ -41,14 +41,18 @@ Run the following script in `isaac_ros_common` to build the image and launch the
 You can either provide an optional path to mirror in your host ROS workspace with Isaac ROS packages, which will be made available in the container as `/workspaces/isaac_ros-dev`, or you can setup a new workspace in the container.
 
 ### Reference Camera
-The [Leopard Imaging](https://www.leopardimaging.com/product/) NVIDIA camera partner provides the below camera modules, which are compliant with the `isaac_ros_argus_camera` packages.
+NVIDIA has worked with our camera partners to provide the modules listed below which are compatible with the Isaac ROS Argus Camera packages.
 
 
-| Product Name | Type                | Resolution  |
-| ------------ | ------------------- | ----------- |
-| HAWK         | Stereo Camera       | 1920 x 1200 |
-| OWL          | Fisheye Camera      | 1920 x 1200 |
-| IMX477       | 4K Monocular Camera | 4056 x 3040 |
+
+| Camera Type            | Connector | Resolution/FrameRate | H/V FOV | Shutter | Supplier, HW Part, Link to purchase                                                                                                                                        | Driver                                                                                                  |
+| ---------------------- | --------- | -------------------- | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Stereo Camera/Color    | GMSL      | 1920x1200@60fps      | 121/73  | Global  | [LI-AR0234CS-STEREO-GMSL2](https://www.leopardimaging.com/product/autonomous-camera/maxim-gmsl2-cameras/li-ar0234cs-stereo-gmsl2/li-ar0234cs-stereo-gmsl2/)                | [Latest Driver](https://github.com/LPXingxing/LI-AR0234CS-STEREO-GMSL2)                                 |
+| Fisheye Camera/Color   | GMSL      | 1920x1200@60fps      | 202/127 | Global  | [LI-AR0234CS-GMSL2-OWL](https://www.leopardimaging.com/product/autonomous-camera/maxim-gmsl2-cameras/li-ar0234cs-gmsl2-owl/li-ar0234cs-gmsl2-owl/)                         | [Latest Driver](https://github.com/LPXingxing/LI-AR0234CS-GMSL2-OWL)                                    |
+| Monocular Camera/Color | GMSL      | 4056x3040@60fps      | 140/103 | Rolling | [LI-IMX477-MIPI-140H](https://www.leopardimaging.com/product/csi-2-mipi-modules-i-pex/csi-2-mipi-modules/rolling-shutter-mipi-cameras/12-33mp-imx477/li-imx477-mipi-140h/) | [Latest Driver](https://github.com/LPXingxing/LI-IMX477-MIPI-140H)                                      |
+| Monocular Camera/Color | CSI       | 1920x1080@60fps      | 79/64   | Rolling | [D3CM-IMX390 CAMERA MODULE](https://www.d3engineering.com/product/designcore-d3cm-imx390-camera-module/)                                                                   | [Latest Driver](https://github.com/D3Engineering/d3-jetson-bsp/releases/tag/D3%2FRELEASE%2F5.0.0-pre.3) |
+| Monocular Camera/Color | CSI       | 4056x3040@60fps      | 186/186 | Rolling | [FSM-IMX412C](https://www.framos.com/en/products/fsm-imx412c-txa-devkit-single-v1b-25821)                                                                                  | Product Kit contains driver link                                                                        |
+
 
 ## Quickstart
 1. Create a ROS2 workspace if one is not already prepared:  
@@ -124,6 +128,6 @@ We are continuing to collect data and diagnose the issue but changing the QoS se
 
 # Updates
 
-| Date | Changes |
-| -----| ------- |
-| 2021-10-20 | Initial release  |
+| Date       | Changes         |
+| ---------- | --------------- |
+| 2021-10-20 | Initial release |
