@@ -18,6 +18,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+# Default to Release build
+if(NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+endif()
+message( STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}" )
+
 execute_process(
   COMMAND uname -m
   COMMAND tr -d '\n'
@@ -26,6 +32,7 @@ message(STATUS "Architecture: ${ARCHITECTURE}")
 
 find_package(rclcpp REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
+find_package(camera_info_manager REQUIRED)
 ament_auto_find_build_dependencies()
 
 # Only build Argus nodes on Jetson platform

@@ -23,6 +23,7 @@ license agreement from NVIDIA CORPORATION is strictly prohibited.
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
+  <depend>camera_info_manager</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>  
   <depend>isaac_ros_common</depend>
