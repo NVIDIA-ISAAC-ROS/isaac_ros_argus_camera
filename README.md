@@ -2,136 +2,186 @@
 
 <div align="center"><img src="resources/100_library_left.JPG" width="350" title="HAWK Stereo Left"/><img src="resources/100_library_right.JPG" width="350" title="HAWK Stereo Right"/></div>
 
-This repository provides monocular and stereo nodes that enable ROS developers to use cameras connected to Jetson platforms over a CSI interface. The nodes internally use libargus, which is an API for acquiring images and associated metadata from camera devices.
+## Overview
+This repository provides the Isaac ROS Argus node, which enables ROS developers to use monocular and stereo cameras connected to Jetson platforms over CSI. The node uses the [Libargus API](https://docs.nvidia.com/jetson/l4t-multimedia/group__LibargusAPI.html) internally for acquiring images and associated metadata from camera devices.
 
-[Libargus API reference](https://docs.nvidia.com/jetson/l4t-multimedia/group__LibargusAPI.html)
+### Isaac ROS NITROS Acceleration
+This package is powered by [NVIDIA Isaac Transport for ROS (NITROS)](https://developer.nvidia.com/blog/improve-perception-performance-for-ros-2-applications-with-nvidia-isaac-transport-for-ros/), which leverages type adaptation and negotiation to optimize message formats and dramatically accelerate communication between participating nodes. 
 
-This package is compatible with ROS2 Foxy and has been tested on the Jetson platfrom with off-the-shelf cameras from NVIDIA partners(see the **Reference Camera** section for more details). **Note**: x86_64 is not supported.
+## Table of Contents
+- [Isaac ROS Argus Camera](#isaac-ros-argus-camera)
+  - [Overview](#overview)
+    - [Isaac ROS NITROS Acceleration](#isaac-ros-nitros-acceleration)
+  - [Table of Contents](#table-of-contents)
+  - [Latest Update](#latest-update)
+  - [Supported Platforms](#supported-platforms)
+    - [Docker](#docker)
+    - [Reference Cameras](#reference-cameras)
+  - [Quickstart](#quickstart)
+      - [Launch stereo camera](#launch-stereo-camera)
+    - [ROS Parameters](#ros-parameters)
+    - [ROS Topics Published](#ros-topics-published)
+    - [Launch testing](#launch-testing)
+      - [Monocular camera](#monocular-camera)
+      - [Stereo camera](#stereo-camera)
+    - [Output Color Space Format](#output-color-space-format)
+    - [`CameraInfo` Message](#camerainfo-message)
+  - [Troubleshooting](#troubleshooting)
+    - [Isaac ROS Troubleshooting](#isaac-ros-troubleshooting)
+    - [Argus fails to create capture session](#argus-fails-to-create-capture-session)
+      - [Symptoms](#symptoms)
+      - [Solution](#solution)
+  - [Updates](#updates)
 
-For solutions to known issues, please visit the [Troubleshooting](#troubleshooting) section below.
 
-## System Requirements
-The CSI camera device needs to be connected and running and to present the video device node (e.g. /dev/video0).
+## Latest Update
+Update 2022-06-30: Support NITROS acceleration
 
-### Jetson
-- [Jetson AGX Xavier and NX Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)
-- [JetPack 4.6.1](https://developer.nvidia.com/embedded/jetpack)
+## Supported Platforms
+This package is designed and tested to be compatible with ROS2 Humble running on [Jetson](https://developer.nvidia.com/embedded-computing) with off-the-shelf cameras from NVIDIA partners (see the [Reference Cameras](#reference-cameras) section for more details).
+> **Note**: x86_64 system is not supported.
 
-**Note:** For best performance on Jetson, ensure that power settings are configured appropriately ([Power Management for Jetson](https://docs.nvidia.com/jetson/l4t/index.html#page/Tegra%20Linux%20Driver%20Package%20Development%20Guide/power_management_jetson_xavier.html#wwpID0EUHA)).
+
+| Platform | Hardware                                                                                                                                                                                                | Software                                                          | Notes                                                                                                                                                                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jetson   | [Jetson Orin](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/)<br/>[Jetson Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-agx-xavier/) | [JetPack 5.0.1 DP](https://developer.nvidia.com/embedded/jetpack) | The [CSI](https://en.wikipedia.org/wiki/Camera_Serial_Interface) camera device needs to be connected and presented as a video device (e.g. `/dev/video0`).<br/><br/>For best performance, ensure that [power settings](https://docs.nvidia.com/jetson/archives/r34.1/DeveloperGuide/text/SD/PlatformPowerAndPerformance.html) are configured appropriately. |
+
 
 ### Docker
-Precompiled ROS2 Foxy packages are not available for JetPack 4.6 (based on Ubuntu 18.04 Bionic). You can either manually compile ROS2 Foxy and required dependent packages from source or use the Isaac ROS development Docker image from [Isaac ROS Common](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common).
+To simplify development, we strongly recommend leveraging the Isaac ROS Dev Docker images by following [these steps](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common/blob/main/docs/dev-env-setup.md). This will streamline your development environment setup with the correct versions of dependencies on Jetson platforms.
 
-You must first install the [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) to make use of the Docker container development/runtime environment.
-
-Configure `nvidia-container-runtime` as the default runtime for Docker by editing `/etc/docker/daemon.json` to include the following:
-```
-    "runtimes": {
-        "nvidia": {
-            "path": "nvidia-container-runtime",
-            "runtimeArgs": []
-        }
-    },
-    "default-runtime": "nvidia"
-```
-and then restarting Docker: `sudo systemctl daemon-reload && sudo systemctl restart docker`
-
-Run the following script in `isaac_ros_common` to build the image and launch the container:
-
-`$ scripts/run_dev.sh <optional path>`
-
-You can either provide an optional path to mirror in your host ROS workspace with Isaac ROS packages, which will be made available in the container as `/workspaces/isaac_ros-dev`, or you can setup a new workspace in the container.
-
-### Reference Camera
-NVIDIA has worked with our camera partners to provide the modules listed below which are compatible with the Isaac ROS Argus Camera packages.
+> **Note:** All Isaac ROS Quickstarts, tutorials, and examples have been designed with the Isaac ROS Docker images as a prerequisite.
+  
+### Reference Cameras
+NVIDIA has worked with our camera partners to provide the modules listed below which are compatible with the Isaac ROS Argus Camera package.
 
 
+| Camera Type            | Connector | Resolution/FrameRate | H/V FOV | Shutter | Supplier, HW Part, Link to purchase                                                                                                                                   |
+| ---------------------- | --------- | -------------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stereo Camera/Color    | GMSL      | 1920x1200@60fps      | 121/73  | Global  | [LI-AR0234CS-STEREO-GMSL2](https://www.leopardimaging.com/product/autonomous-camera/maxim-gmsl2-cameras/li-ar0234cs-stereo-gmsl2/li-ar0234cs-stereo-gmsl2/)           |
+| Fisheye Camera/Color   | GMSL      | 1920x1200@60fps      | 202/127 | Global  | [LI-AR0234CS-GMSL2-OWL](https://www.leopardimaging.com/product/autonomous-camera/maxim-gmsl2-cameras/li-ar0234cs-gmsl2-owl/li-ar0234cs-gmsl2-owl/)                    |
+| Monocular Camera/Color | CSI       | 4056x3040@60fps      | 140/103 | Global  | [IMX477 -140FOH](https://www.leopardimaging.com/product/csi-2-mipi-modules-i-pex/csi-2-mipi-modules/rolling-shutter-mipi-cameras/12-33mp-imx477/li-imx477-mipi-140h/) |
+| Monocular Camera/Color | CSI       | 3264x2464@21fps      | 90/90   | Rolling | [LI-NANO-CB-IMX219-090H](https://www.leopardimaging.com/product/nvidia-jetson-cameras/nvidia_nano_mipi_camera_kits/li-nano-cb-imx219-x/li-nano-cb-imx219-090h/)       |
 
-| Camera Type            | Connector | Resolution/FrameRate | H/V FOV | Shutter | Supplier, HW Part, Link to purchase                                                                                                                                        | Driver                                                                                                  |
-| ---------------------- | --------- | -------------------- | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Stereo Camera/Color    | GMSL      | 1920x1200@60fps      | 121/73  | Global  | [LI-AR0234CS-STEREO-GMSL2](https://www.leopardimaging.com/product/autonomous-camera/maxim-gmsl2-cameras/li-ar0234cs-stereo-gmsl2/li-ar0234cs-stereo-gmsl2/)                | [Latest Driver](https://github.com/LPXingxing/LI-AR0234CS-STEREO-GMSL2)                                 |
-| Monocular Camera/Color   | CSI      | 3264x2464@21fps      | 90/90 | Rolling  | [LI-NANO-CB-IMX219-090H](https://www.leopardimaging.com/product/nvidia-jetson-cameras/nvidia_nano_mipi_camera_kits/li-nano-cb-imx219-x/li-nano-cb-imx219-090h/)           | Included in JetPack  4.6.1                                    |
+
 
 ## Quickstart
-1. Create a ROS2 workspace if one is not already prepared:  
-`mkdir -p your_ws/src`  
-**Note:** The workspace can have any name; this guide assumes you name it `your_ws`.
+1. Set up your development environment by following the instructions [here](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common/blob/main/docs/dev-env-setup.md).  
 
-2. Clone the Isaac ROS Argus Camera repository to `your_ws/src/isaac_ros_argus_camera`. Check that you have [Git LFS](https://git-lfs.github.com/) installed before cloning to pull down all large files.  
-`sudo apt-get install git-lfs`  
-`cd your_ws/src && git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_argus_camera`
+2. Clone this repository and its dependencies under `~/workspaces/isaac_ros-dev/src`.
+    ```bash
+    cd ~/workspaces/isaac_ros-dev/src
+    ```
 
-3. Build and source the workspace:  
-`cd your_ws && colcon build --symlink-install && source install/setup.bash`
+    ```bash
+    git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common
+    ```
 
-4. (Optional) Run tests to verify complete and correct installation:  
-`colcon test`
+    ```bash
+    git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros
+    ```
 
-5. Launch the node:  
-`ros2 run isaac_ros_argus_camera_mono isaac_ros_argus_camera_mono --ros-args -p device:=0 -p sensor:=0 -p output_encoding:="mono8"`
+    ```bash
+    git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_argus_camera
+    ```
 
+3. Launch the Docker container using the `run_dev.sh` script:
+    ```bash
+    cd ~/workspaces/isaac_ros-dev/src/isaac_ros_common && \
+      ./scripts/run_dev.sh
+    ```
+4. Inside the container, build and source the workspace:
+    ```bash
+    cd /workspaces/isaac_ros-dev && \
+      colcon build --symlink-install && \
+      source install/setup.bash
+    ```
+5. (Optional) Run tests to verify complete and correct installation:
+    ```bash
+    colcon test --executor sequential
+    ```
+6. Run the following launch files to spin up a demo of this package:
+    ```bash
+    ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_mono.launch.py
+   ```
+7. Use `image_saver` to save the output images:
+    ```bash
+    ros2 run image_view image_saver --ros-args -r image:=/left/image_raw -p filename_format:="left_image.jpg"
+    ```
 
 ## Package Reference
-### isaac_ros_argus_camera_mono
+#### Usage
+#### Launch monocular camera:
+   ```bash
+   ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_mono.launch.py
+   ```
+#### Launch stereo camera
+   ```bash
+   ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_stereo.launch.py
+   ```
 
-`ros2 run isaac_ros_argus_camera_mono isaac_ros_argus_camera_mono --ros-args -p device:=<device_index> -p sensor:=<sensor_index> -p output_encoding:=<encoding_string>`
-  
-| ROS Argument      | Usage                                                                                                                                                |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `device_index`    | The video node index (e.g. `/dev/video0`)                                                                                                            |
-| `sensor_index`    | The sensor mode supported by the camera sensor and driver                                                                                            |
-| `output_encoding` | The output image format.  `mono8 ` and `rgb8 ` are currently supported                                                                               |
-| `camera_info_url` | URL for camera info YAML file which overrides Argus Ext calibration parameter if specified (e.g. `file:///home/admin/.ros/camera_info/camerav2.yml`) |
+### ROS Parameters
+| ROS Parameter           | Type     | Default       | Description                                                                                                |
+| ----------------------- | -------- | ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `camera_id`             | `uint`   | `0`           | The video device index <br/> E.g. `/dev/video0`                                                            |
+| `module_id`             | `uint`   | `0`           | The camera module index in the device tree, If there is more than one but the same camera module connected |
+| `mode`                  | `uint`   | `0`           | The sensor mode supported by the camera sensor and driver                                                  |
+| `framerate`             | `uint`   | `30`          | The frame rate of the sensor mode <br/> E.g. `30` or `60` fps                                              |
+| `camera_type`           | `uint`   | `1`           | 0 for Monocular type camera; 1 for Stereo type camera                                                      |
+| `output_format`         | `uint`   | `1`           | Output color space format from libargus.<br/>0 for YUV420 to RGB888 ; 1 for YUV444 to RGB888               |
+| `camera_info_url`       | `string` | N/A, optional | The URL of camera info `.ini` file for monocular camera                                                    |
+| `left_camera_info_url`  | `string` | N/A, optional | The URL of camera info `.ini` file for stereo left                                                         |
+| `right_camera_info_url` | `string` | N/A, optional | The URL of camera info `.ini` file for stereo right                                                        |
+
+> **Note**: To run the stereo camera, two video devices should present for the left and right sensors, respectively (e.g. `/dev/video0` and `/dev/video1`).
+
+### ROS Topics Published
+| ROS Topic          | Interface                                                                                                      | Description                       |
+| ------------------ | -------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `left/image_raw`   | [sensor_msgs/Image](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/Image.msg)           | The left image of a stereo pair.  |
+| `right/image_raw`  | [sensor_msgs/Image](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/Image.msg)           | The right image of a stereo pair. |
+| `left/camerainfo`  | [sensor_msgs/CameraInfo](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/CameraInfo.msg) | The left camera model.            |
+| `right/camerainfo` | [sensor_msgs/CameraInfo](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/CameraInfo.msg) | The right camera model.           |
 
 
-### isaac_ros_argus_camera_stereo
+### Launch testing
+#### Monocular camera
+   ```bash
+launch_test src/isaac_ros_argus_camera/isaac_ros_argus_camera/test/isaac_ros_argus_camera_mono_test.py
+   ```
+#### Stereo camera
+   ```bash
+launch_test src/isaac_ros_argus_camera/isaac_ros_argus_camera/test/isaac_ros_argus_camera_stereo_test.py
+   ```
 
-   `ros2 run isaac_ros_argus_camera_stereo isaac_ros_argus_camera_stereo --ros-args -p device:=<device_index> -p sensor:=<sensor_index> -p output_encoding:=<encoding_string>`
+### Output Color Space Format
+The Isaac ROS Argus node supports the `YUV444` and `YUV420` colorspaces from `libargus` and converts it to the `RGB888` colorspace as output.
 
-| ROS Argument      | Usage                                                                                                                                                |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `device_index`    | The first video node index (e.g. `/dev/video0`)                                                                                                      |
-| `sensor_index`    | The sensor mode supported by the camera sensor and driver                                                                                            |
-| `output_encoding` | The output image format.  `mono8 ` and `rgb8 ` are currently supported                                                                               |
-| `camera_info_url` | URL for camera info YAML file which overrides Argus Ext calibration parameter if specified (e.g. `file:///home/admin/.ros/camera_info/camerav2.yml`) |
+### `CameraInfo` Message
+The Isaac ROS Argus node uses the Argus Ext API to retrieve calibration parameters from the camera through the Linux device driver and convert it into [CameraInfo](https://github.com/ros2/common_interfaces/blob/humble/sensor_msgs/msg/CameraInfo.msg) messages.
+Refer to [this page](https://docs.nvidia.com/jetson/l4t-multimedia/classArgus_1_1Ext_1_1ISyncSensorCalibrationData.html) for the data structure of the calibration parameters.
 
-**Note**: To run the stereo node, two video nodes should present for left and right sensors, respectively (e.g. `/dev/video0` and `/dev/video1`).
+> **Note**: Each camera module should have stored the calibration parameters in internal memory like EEPROM, and the device driver must support the Argus Ext API to extract those parameters. Contact your camera vendor to get the required drivers.
 
-Examples:  
-`ros2 run isaac_ros_argus_camera_mono isaac_ros_argus_camera_mono --ros-args -p device:=0 -p sensor:=0 -p output_encoding:="rgb8"`
+> **Note:** If your camera does not support the Argus Ext API, you can also specify a URL to a camera info `.ini` file parseable by the ROS [CameraInfoManager](http://wiki.ros.org/camera_info_manager) using the `camera_info_url` parameter on the Isaac ROS Argus node. This will allow you to provide parameters you may have calibrated using the ROS Camera Calibration package, for example.
 
-`ros2 run isaac_ros_argus_camera_stereo isaac_ros_argus_camera_stereo --ros-args -p device:=0 -p sensor:=0 -p output_encoding:="mono8"`
-
-To view the output images:  
-  
- `ros2 run image_view image_saver --ros-args -r image:=/image_raw -p filename_format:="right_image.jpg" `
-
- `ros2 run image_view image_saver --ros-args -r image:=/stereo/left/image_raw -p filename_format:="left_image.jpg" `
-
-### CameraInfo Message
-Argus nodes use the Argus Ext API to retrieve calibration parameters from the camera through the Linux device driver and convert it to [`CameraInfo`](http://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/CameraInfo.html) messages.  
-Refer to [link](https://docs.nvidia.com/jetson/l4t-multimedia/classArgus_1_1Ext_1_1ISyncSensorCalibrationData.html) for the data structure of the calibration parameters. 
-
-**Note**: Each camera module should have stored the calibration parameters in the internal memory like EEPROM and the device driver supports the API to extract it. Contact your camera vendor to get the driver that supports it.
-
-If your camera does not support the Argus Ext API, you can also specify a URL to a camera info YAML file parseable by ROS [CameraInfoManager](http://wiki.ros.org/camera_info_manager) using the `camera_info_url` parameter on Argus nodes. This will allow you to provide parameters you may have calibrated using the ROS [Camera Calibration](http://wiki.ros.org/camera_calibration) package, for example.
+>**Note**: When the `camera_info_url` is provided, the loaded parameters override the `CameraInfo` from Argus Ext API.
 
 ## Troubleshooting
-### 1. Argus camera nodes could stop publishing images sometimes when used with 4K high-resolution cameras in certain graph configurations on FastRTPS
-With downstream subscribers that are not able to process images at the camera frame rate, we have observed instances where the Argus camera node suddenly stops publishing new images after about 15-20 minutes.
+### Isaac ROS Troubleshooting
+For solutions to problems with Isaac ROS, please check [here](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common/blob/main/docs/troubleshooting.md).
+
+### Argus fails to create capture session
+#### Symptoms
+The Isaac ROS Argus node can fail to create a capture session inside the container after the `nvargus` daemon has crashed. By default, the `nvargus` daemon is running in background, but it may crash due to other Argus clients. This will prevent Argus camera nodes from creating capture sessions. You may see messages with errors similar to `Failed to create capture session`.
 
 #### Solution
-We are continuing to collect data and diagnose the issue but changing the QoS settings to "Best Effort" and using a smaller frame size seem to alleviate the condition.
+Exit the Docker container and restart the `nvargus` daemon by running `sudo service nvargus-daemon restart`
 
-### 2. Argus camera nodes can't create capture session after nvargus daemon crashed.
-By default, nvargus daemon is running in backgraound but it may crash due to other Argus clients. This will prevent Argus camera nodes from creating a capture session.
-
-#### Solution
-Exit the docker container and restart nvargus daemon by running `sudo service nvargus-daemon restart`
-
-# Updates
+## Updates
 
 | Date       | Changes                     |
 | ---------- | --------------------------- |
-| 2021-10-20 | Initial release             |
+| 2022-06-30 | Support NITROS acceleration |
 | 2022-03-18 | Support CameraInfo from URL |
+| 2021-10-20 | Initial release             |

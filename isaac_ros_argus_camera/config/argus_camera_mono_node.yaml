@@ -1,0 +1,217 @@
+%YAML 1.2
+# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
+# NVIDIA CORPORATION and its licensors retain all intellectual property
+# and proprietary rights in and to this software, related documentation
+# and any modifications thereto. Any use, reproduction, disclosure or
+# distribution of this software and related documentation without an express
+# license agreement from NVIDIA CORPORATION is strictly prohibited.
+---
+name: atlas
+components:
+- name: pose_tree
+  type: nvidia::isaac::PoseTree
+- type: nvidia::isaac::PoseTreeSetup
+  parameters:
+    pose_tree: pose_tree
+- name: frontend
+  type: nvidia::isaac::AtlasFrontend
+  parameters:
+    pose_tree: pose_tree
+- name: world
+  type: nvidia::isaac::PoseTreeFrame
+  parameters:
+    pose_tree: pose_tree
+- name: left_camera_frame
+  type: nvidia::isaac::PoseTreeFrame
+  parameters:
+    pose_tree: pose_tree
+    parent_frame: world
+    initial_pose:
+      translation: [ 75.0, 0.0, 0.0 ]
+      rotation: [ 1.0, 0.0, 0.0, 0.0 ]
+- name: right_camera_frame
+  type: nvidia::isaac::PoseTreeFrame
+  parameters:
+    pose_tree: pose_tree
+    parent_frame: world
+    initial_pose:
+      translation: [ -75.0, 0.0, 0.0 ]
+      rotation: [ 1.0, 0.0, 0.0, 0.0 ]
+---
+name: argus_camera
+components:
+- name: left_camera_output
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 30
+    policy: 0
+- name: allocator
+  type: nvidia::gxf::UnboundedAllocator
+- type: nvidia::isaac::ArgusCamera
+  parameters:
+    allocator: allocator
+    left_camera_output: left_camera_output
+    right_camera_output: left_camera_output
+    left_camera_frame: atlas/left_camera_frame
+    right_camera_frame: atlas/left_camera_frame
+    camera_id: 0
+    module_id: 0
+    mode: 0
+    framerate: 30
+    camera_type: 0
+    output_format: 1
+- type: nvidia::gxf::PeriodicSchedulingTerm
+  parameters:
+    transmitter: left_camera_output
+    recess_period: 30Hz
+---
+name: splitter_left
+components:
+- name: data_receiver
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: data_receiver
+    min_size: 1
+- name: image_transmitter
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: image_transmitter
+    min_size: 1
+- name: camera_model_transmitter
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: camera_model_transmitter
+    min_size: 1
+- name: splitter
+  type: nvidia::isaac_ros::MessageSplitter
+  parameters:
+    rx: data_receiver
+    image_tx: image_transmitter
+    camera_model_tx: camera_model_transmitter
+---
+name: converter_left
+components:
+- name: data_receiver
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: data_receiver
+    min_size: 1
+- name: data_transmitter
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: data_transmitter
+    min_size: 1
+- name: pool
+  type: nvidia::gxf::UnboundedAllocator
+- name: color_converter_operator
+  type: nvidia::cvcore::tensor_ops::StreamConvertColorFormat
+  parameters:
+    output_type: "RGB_U8"
+    receiver: data_receiver
+    transmitter: data_transmitter
+    pool: pool
+    input_adapter: global/adapter
+    output_adapter: global/adapter
+    output_name: "image"
+    stream: global/stream
+---
+name: global
+components:
+- name: adapter
+  type: nvidia::cvcore::tensor_ops::ImageAdapter
+  parameters:
+    message_type: "VideoBuffer"
+- name: stream
+  type: nvidia::cvcore::tensor_ops::TensorStream
+  parameters:
+    backend_type: "VPI"
+    engine_type: "GPU"
+---
+name: vault_left_image
+components:
+- name: signal
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: signal
+    min_size: 1
+- name: vault
+  type: nvidia::gxf::Vault
+  parameters:
+    source: signal
+    max_waiting_count: 1
+    drop_waiting: false
+---
+name: vault_left_camerainfo
+components:
+- name: signal
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 30
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: signal
+    min_size: 1
+- name: vault
+  type: nvidia::gxf::Vault
+  parameters:
+    source: signal
+    max_waiting_count: 1
+    drop_waiting: false
+---
+components:
+- name: edge0
+  type: nvidia::gxf::Connection
+  parameters:
+    source: argus_camera/left_camera_output
+    target: splitter_left/data_receiver
+- name: edge1
+  type: nvidia::gxf::Connection
+  parameters:
+    source: splitter_left/image_transmitter
+    target: converter_left/data_receiver
+- name: edge2
+  type: nvidia::gxf::Connection
+  parameters:
+    source: converter_left/data_transmitter
+    target: vault_left_image/signal
+- name: edge3
+  type: nvidia::gxf::Connection
+  parameters:
+    source: splitter_left/camera_model_transmitter
+    target: vault_left_camerainfo/signal
+---
+components:
+- name: clock
+  type: nvidia::gxf::RealtimeClock
+- type: nvidia::gxf::GreedyScheduler
+  parameters:
+    clock: clock
+    stop_on_deadlock: false
+- type: nvidia::gxf::JobStatistics
+  parameters:
+    clock: clock
