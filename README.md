@@ -18,6 +18,9 @@ This package is powered by [NVIDIA Isaac Transport for ROS (NITROS)](https://dev
     - [Docker](#docker)
     - [Reference Cameras](#reference-cameras)
   - [Quickstart](#quickstart)
+  - [Package Reference](#package-reference)
+    - [Usage](#usage)
+      - [Launch monocular camera](#launch-monocular-camera)
       - [Launch stereo camera](#launch-stereo-camera)
     - [ROS Parameters](#ros-parameters)
     - [ROS Topics Published](#ros-topics-published)
@@ -103,22 +106,22 @@ NVIDIA has worked with our camera partners to provide the modules listed below w
 6. Run the following launch files to spin up a demo of this package:
     ```bash
     ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_mono.launch.py
-   ```
+    ```
 7. Use `image_saver` to save the output images:
     ```bash
     ros2 run image_view image_saver --ros-args -r image:=/left/image_raw -p filename_format:="left_image.jpg"
     ```
 
 ## Package Reference
-#### Usage
-#### Launch monocular camera:
-   ```bash
-   ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_mono.launch.py
-   ```
+### Usage
+#### Launch monocular camera
+```bash
+ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_mono.launch.py
+```
 #### Launch stereo camera
-   ```bash
-   ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_stereo.launch.py
-   ```
+```bash
+ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_stereo.launch.py
+```
 
 ### ROS Parameters
 | ROS Parameter           | Type     | Default       | Description                                                                                                |
