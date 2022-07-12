@@ -70,7 +70,7 @@ components:
 - name: data_receiver
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
-    capacity: 30
+    capacity: 1
     policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
@@ -79,7 +79,7 @@ components:
 - name: image_transmitter
   type: nvidia::gxf::DoubleBufferTransmitter
   parameters:
-    capacity: 30
+    capacity: 1
     policy: 0
 - type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
   parameters:
@@ -88,7 +88,7 @@ components:
 - name: camera_model_transmitter
   type: nvidia::gxf::DoubleBufferTransmitter
   parameters:
-    capacity: 30
+    capacity: 1
     policy: 0
 - type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
   parameters:
@@ -152,7 +152,7 @@ components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
-    capacity: 30
+    capacity: 1
     policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
@@ -170,7 +170,7 @@ components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
-    capacity: 30
+    capacity: 1
     policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
