@@ -19,6 +19,8 @@
 #include "gxf/multimedia/camera.hpp"
 #include "gxf/std/timestamp.hpp"
 #include "isaac_ros_argus_camera/argus_camera_node.hpp"
+#include "isaac_ros_nitros_camera_info_type/nitros_camera_info.hpp"
+#include "isaac_ros_nitros_image_type/nitros_image.hpp"
 
 namespace nvidia
 {
@@ -70,7 +72,11 @@ ArgusCameraNode::ArgusCameraNode(
     EXTENSIONS,
     PACKAGE_NAME),
   camera_link_frame_name_("camera"),
-  tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(*this)) {}
+  tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(*this))
+{
+  registerSupportedType<nvidia::isaac_ros::nitros::NitrosCameraInfo>();
+  registerSupportedType<nvidia::isaac_ros::nitros::NitrosImage>();
+}
 
 void ArgusCameraNode::ArgusImageCallback(
   const gxf_context_t context, nitros::NitrosTypeBase & msg, const std::string frame_name)

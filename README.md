@@ -38,16 +38,17 @@ This package is powered by [NVIDIA Isaac Transport for ROS (NITROS)](https://dev
 
 
 ## Latest Update
-Update 2022-06-30: Support NITROS acceleration
+Update 2022-08-31: Update to be compatible with JetPack 5.0.2
 
 ## Supported Platforms
 This package is designed and tested to be compatible with ROS2 Humble running on [Jetson](https://developer.nvidia.com/embedded-computing) with off-the-shelf cameras from NVIDIA partners (see the [Reference Cameras](#reference-cameras) section for more details).
 > **Note**: x86_64 system is not supported.
 
+> **Note**: Versions of ROS2 earlier than Humble are **not** supported. This package depends on specific ROS2 implementation features that were only introduced beginning with the Humble release.
 
-| Platform | Hardware                                                                                                                                                                                                | Software                                                          | Notes                                                                                                                                                                                                                                                                                                                                                       |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Jetson   | [Jetson Orin](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/)<br/>[Jetson Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-agx-xavier/) | [JetPack 5.0.1 DP](https://developer.nvidia.com/embedded/jetpack) | The [CSI](https://en.wikipedia.org/wiki/Camera_Serial_Interface) camera device needs to be connected and presented as a video device (e.g. `/dev/video0`).<br/><br/>For best performance, ensure that [power settings](https://docs.nvidia.com/jetson/archives/r34.1/DeveloperGuide/text/SD/PlatformPowerAndPerformance.html) are configured appropriately. |
+| Platform | Hardware                                                                                                                                                                                                | Software                                                       | Notes                                                                                                                                                                                                                                                                                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jetson   | [Jetson Orin](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/)<br/>[Jetson Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-agx-xavier/) | [JetPack 5.0.2](https://developer.nvidia.com/embedded/jetpack) | The [CSI](https://en.wikipedia.org/wiki/Camera_Serial_Interface) camera device needs to be connected and presented as a video device (e.g. `/dev/video0`).<br/><br/>For best performance, ensure that [power settings](https://docs.nvidia.com/jetson/archives/r34.1/DeveloperGuide/text/SD/PlatformPowerAndPerformance.html) are configured appropriately. |
 
 
 ### Docker
@@ -183,8 +184,9 @@ Exit the Docker container and restart the `nvargus` daemon by running `sudo serv
 
 ## Updates
 
-| Date       | Changes                     |
-| ---------- | --------------------------- |
-| 2022-06-30 | Support NITROS acceleration |
-| 2022-03-18 | Support CameraInfo from URL |
-| 2021-10-20 | Initial release             |
+| Date       | Changes                                    |
+| ---------- | ------------------------------------------ |
+| 2022-08-31 | Update to be compatible with JetPack 5.0.2 |
+| 2022-06-30 | Support NITROS acceleration                |
+| 2022-03-18 | Support CameraInfo from URL                |
+| 2021-10-20 | Initial release                            |
