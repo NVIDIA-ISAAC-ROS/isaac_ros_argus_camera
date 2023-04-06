@@ -20,7 +20,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>isaac_ros_argus_camera</name>
-  <version>0.20.0</version>
+  <version>0.30.0</version>
   <description>Support for Argus Stereo Camera</description>
 
   <maintainer email="glo@nvidia.com">Greg Lo</maintainer>
@@ -33,12 +33,15 @@
 
   <depend>camera_info_manager</depend>
   <depend>geometry_msgs</depend>
+  <depend>isaac_ros_image_proc</depend>
   <depend>isaac_ros_nitros</depend>
   <depend>isaac_ros_nitros_camera_info_type</depend>
   <depend>isaac_ros_nitros_image_type</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>tf2_ros</depend>
+
+  <build_depend>isaac_ros_common</build_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
