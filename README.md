@@ -106,6 +106,10 @@ NVIDIA has worked with our camera partners to provide the modules listed below w
     ```bash
     git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros
     ```
+    
+    ```bash
+    git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline
+    ```
 
     ```bash
     git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_argus_camera
