@@ -28,8 +28,6 @@ message( STATUS "Architecture: ${ARCHITECTURE}" )
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-# Only build Argus nodes on Jetson platform
-if(${ARCHITECTURE} STREQUAL "aarch64")
 # aarch64
 
 ament_auto_add_library(base_node SHARED src/argus_camera_node.cpp)
@@ -46,10 +44,13 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 
   find_package(launch_testing_ament_cmake REQUIRED)
+  # Only add camera tests if on Jetson platform
+  if(${ARCHITECTURE} STREQUAL "aarch64")
   add_launch_test(test/isaac_ros_argus_camera_mono_test.py)
   add_launch_test(test/isaac_ros_argus_camera_stereo_test.py)
+  add_launch_test(test/isaac_ros_argus_camera_stereo_oss_rectify_compare.py)
+  endif()  # aarch64
 endif()
 
-endif()  # aarch64
 
 ament_auto_package(INSTALL_TO_SHARE config launch)

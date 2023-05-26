@@ -22,5 +22,5 @@ body:
   components:
     - type: nvidia::isaac::ArgusCamera
       path_parameter_keys: [left_camera_frame, right_camera_frame]
-    - type: nvidia::cvcore::tensor_ops::StreamConvertColorFormat
+    - type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
       path_parameter_keys: [input_adapter, output_adapter, stream]

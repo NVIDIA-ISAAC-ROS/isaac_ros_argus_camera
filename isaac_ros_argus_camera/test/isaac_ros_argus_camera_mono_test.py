@@ -21,8 +21,6 @@ import shlex
 import subprocess
 import time
 
-import cv2
-from cv_bridge import CvBridge
 from isaac_ros_test import IsaacROSBaseTest
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
@@ -88,29 +86,22 @@ class IsaacArgusMonoNodeTest(IsaacROSBaseTest):
             self.skipTest('No camera detected! Skipping test.')
         else:
             TIMEOUT = 10
-            received_messages = {}
+            received_messages = []
 
-            self.generate_namespace_lookup(['left/image_raw', 'left/camerainfo'])
-
-            subs = self.create_logging_subscribers(
+            self.create_exact_time_sync_logging_subscribers(
                 [('left/image_raw', Image), ('left/camerainfo', CameraInfo)], received_messages,
                 accept_multiple_messages=True)
-            try:
-                end_time = time.time() + TIMEOUT
-                done = False
+            end_time = time.time() + TIMEOUT
+            done = False
 
-                while time.time() < end_time:
+            while time.time() < end_time:
 
-                    rclpy.spin_once(self.node, timeout_sec=(0.1))
-                    if len(received_messages['left/image_raw']) > 0 and \
-                            len(received_messages['left/camerainfo']) > 0:
-                        done = True
-                        break
-                self.assertTrue(done, 'Appropriate output not received')
-                left_image = received_messages['left/image_raw']
-
-                left_cv_image = CvBridge().imgmsg_to_cv2(left_image[0], desired_encoding='bgr8')
-                cv2.imwrite('left_image.png', left_cv_image)
-
-            finally:
-                self.node.destroy_subscription(subs)
+                rclpy.spin_once(self.node, timeout_sec=(0.1))
+                if len(received_messages) > 0:
+                    done = True
+                    break
+            self.assertTrue(done, 'Appropriate output not received')
+            for received_message in received_messages:
+                self.assertTrue(received_message[0].header.stamp ==
+                                received_message[1].header.stamp,
+                                'Timestamps are not synced!')
