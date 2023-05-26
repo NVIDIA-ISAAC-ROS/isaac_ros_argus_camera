@@ -1,6 +1,6 @@
 %YAML 1.2
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,6 +83,58 @@ components:
   parameters:
     transmitter: right_camera_output
     recess_period: 30Hz
+---
+name: rectify_parameters
+components:
+- name: left_transmitter
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 1
+    policy: 0
+- name: right_transmitter
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 1
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: left_transmitter
+    min_size: 1
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: right_transmitter
+    min_size: 1
+- name: left_receiver
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 25
+    policy: 0
+- name: right_receiver
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 25
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: left_receiver
+    min_size: 1
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: right_receiver
+    min_size: 1
+- name: allocator
+  type: nvidia::gxf::BlockMemoryPool
+  parameters:
+    storage_type: 1
+    block_size: 6912000
+    num_blocks: 60
+- type: nvidia::isaac::RectifyParamsGenerator
+  parameters:
+    left_camera_input: left_receiver
+    right_camera_input: right_receiver
+    left_camera_output: left_transmitter
+    right_camera_output: right_transmitter
+    allocator: allocator
 ---
 name: splitter_left
 components:
@@ -179,7 +231,7 @@ components:
 - name: pool
   type: nvidia::gxf::UnboundedAllocator
 - name: color_converter_operator
-  type: nvidia::cvcore::tensor_ops::StreamConvertColorFormat
+  type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
   parameters:
     output_type: "RGB_U8"
     receiver: data_receiver
@@ -187,7 +239,7 @@ components:
     pool: pool
     input_adapter: global/adapter
     output_adapter: global/adapter
-    output_name: "image"
+    output_name: "frame"
     stream: global/stream
 ---
 name: converter_right
@@ -213,7 +265,7 @@ components:
 - name: pool
   type: nvidia::gxf::UnboundedAllocator
 - name: color_converter_operator
-  type: nvidia::cvcore::tensor_ops::StreamConvertColorFormat
+  type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
   parameters:
     output_type: "RGB_U8"
     receiver: data_receiver
@@ -221,22 +273,22 @@ components:
     pool: pool
     input_adapter: global/adapter
     output_adapter: global/adapter
-    output_name: "image"
+    output_name: "frame"
     stream: global/stream
 ---
 name: global
 components:
 - name: adapter
-  type: nvidia::cvcore::tensor_ops::ImageAdapter
+  type: nvidia::isaac::tensor_ops::ImageAdapter
   parameters:
     message_type: "VideoBuffer"
 - name: stream
-  type: nvidia::cvcore::tensor_ops::TensorStream
+  type: nvidia::isaac::tensor_ops::TensorStream
   parameters:
     backend_type: "VPI"
     engine_type: "GPU"
 ---
-name: vault_left_image
+name: sink_left_image
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -247,14 +299,12 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
-name: vault_right_image
+name: sink_right_image
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -265,14 +315,12 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
-name: vault_left_camerainfo
+name: sink_left_camerainfo
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -283,14 +331,12 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
-name: vault_right_camerainfo
+name: sink_right_camerainfo
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -301,46 +347,52 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
 components:
 - type: nvidia::gxf::Connection
   parameters:
     source: argus_camera/left_camera_output
-    target: splitter_left/data_receiver
-- type: nvidia::gxf::Connection
-  parameters:
-    source: splitter_left/image_transmitter
     target: converter_left/data_receiver
 - type: nvidia::gxf::Connection
   parameters:
     source: converter_left/data_transmitter
-    target: vault_left_image/signal
+    target: rectify_parameters/left_receiver
+- type: nvidia::gxf::Connection
+  parameters:
+    source: rectify_parameters/left_transmitter
+    target: splitter_left/data_receiver
+- type: nvidia::gxf::Connection
+  parameters:
+    source: splitter_left/image_transmitter
+    target: sink_left_image/signal
 - type: nvidia::gxf::Connection
   parameters:
     source: splitter_left/camera_model_transmitter
-    target: vault_left_camerainfo/signal
+    target: sink_left_camerainfo/signal
 - type: nvidia::gxf::Connection
   parameters:
     source: argus_camera/right_camera_output
-    target: splitter_right/data_receiver
-- type: nvidia::gxf::Connection
-  parameters:
-    source: splitter_right/image_transmitter
     target: converter_right/data_receiver
 - type: nvidia::gxf::Connection
   parameters:
     source: converter_right/data_transmitter
-    target: vault_right_image/signal
+    target: rectify_parameters/right_receiver
+- type: nvidia::gxf::Connection
+  parameters:
+    source: rectify_parameters/right_transmitter
+    target: splitter_right/data_receiver
+- type: nvidia::gxf::Connection
+  parameters:
+    source: splitter_right/image_transmitter
+    target: sink_right_image/signal
 - type: nvidia::gxf::Connection
   parameters:
     source: splitter_right/camera_model_transmitter
-    target: vault_right_camerainfo/signal
+    target: sink_right_camerainfo/signal
 ---
 components:
 - name: clock
@@ -349,6 +401,7 @@ components:
   parameters:
     clock: clock
     stop_on_deadlock: false
+    check_recession_period_us: 100
 - type: nvidia::gxf::JobStatistics
   parameters:
     clock: clock

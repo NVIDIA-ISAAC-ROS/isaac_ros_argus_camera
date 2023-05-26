@@ -20,6 +20,7 @@
 #include "camera_info_manager/camera_info_manager.hpp"
 
 #include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Transform.h"
 #include "tf2/LinearMath/Quaternion.h"
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
@@ -56,10 +57,12 @@ const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
   {"isaac_ros_gxf", "gxf/lib/libgxf_isaac_messages.so"},
   {"isaac_ros_gxf", "gxf/lib/multimedia/libgxf_multimedia.so"},
   {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_tensorops.so"},
+  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_rectify_params_generator.so"},
   {"isaac_ros_gxf", "gxf/lib/libgxf_argus.so"},
   {"isaac_ros_gxf", "gxf/lib/libgxf_message_compositor.so"}
 };
 constexpr char PACKAGE_NAME[] = "isaac_ros_argus_camera";
+constexpr char GXF_EXTRINSICS_NAME[] = "extrinsics";
 const std::vector<std::string> GENERATOR_RULE_FILENAMES = {
   "config/namespace_injector_rule.yaml"
 };
@@ -104,7 +107,7 @@ void ArgusCameraNode::ArgusCameraInfoCallback(
   // Fill in CameraModel if camera info is provided
   if (camera_info != nullptr) {
     RCLCPP_DEBUG(
-      get_logger(), "[ArgusCameraNode] Overriding CameraModel with vaules loaded from URL");
+      get_logger(), "[ArgusCameraNode] Overriding CameraModel with values loaded from URL");
 
     auto gxf_camera_model = msg_entity->get<nvidia::gxf::CameraModel>();
     if (!gxf_camera_model) {
@@ -158,7 +161,7 @@ void ArgusCameraNode::ArgusCameraInfoCallback(
     }
 
     // Set extrinsic information into message
-    auto gxf_pose_3d = msg_entity->get<nvidia::gxf::Pose3D>();
+    auto gxf_pose_3d = msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
     if (!gxf_pose_3d) {
       std::stringstream error_msg;
       error_msg << "[ArgusCameraNode] Failed to get Pose3D object from message entity: " <<
@@ -200,40 +203,57 @@ void ArgusCameraNode::ArgusCameraInfoCallback(
       "[ArgusCameraNode] Failed to get timestamp");
   }
 
+  msg.frame_id = child_frame;
+  transform_stamped.header.frame_id = parent_frame;
+  transform_stamped.child_frame_id = child_frame;
+
   // Extract camera extrinsics
-  auto gxf_pose_3d = msg_entity->get<nvidia::gxf::Pose3D>();
-  if (!gxf_pose_3d) {
+  auto cam_pose_rig = msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
+  if (!cam_pose_rig) {
     std::stringstream error_msg;
-    error_msg << "[ArgusCameraNode] Failed to get Pose3D object from message entity: " <<
-      GxfResultStr(gxf_pose_3d.error());
+    error_msg << "[ArgusCameraNode] Failed pose get Pose3D object from message entity: " <<
+      GxfResultStr(cam_pose_rig.error());
     RCLCPP_ERROR(
       get_logger(), error_msg.str().c_str());
     throw std::runtime_error(error_msg.str().c_str());
   }
 
-  msg.frame_id = child_frame;
-
-  transform_stamped.header.frame_id = parent_frame;
-  transform_stamped.child_frame_id = child_frame;
-  transform_stamped.transform.translation.x = gxf_pose_3d.value()->translation[0];
-  transform_stamped.transform.translation.y = gxf_pose_3d.value()->translation[1];
-  transform_stamped.transform.translation.z = gxf_pose_3d.value()->translation[2];
+  const tf2::Vector3 cam_pose_rig_translation(
+    cam_pose_rig.value()->translation[0],
+    cam_pose_rig.value()->translation[1],
+    cam_pose_rig.value()->translation[2]);
   // tf2::Matrix3x3 is row major
-  tf2::Matrix3x3 rot_mat = {gxf_pose_3d.value()->rotation[0],
-    gxf_pose_3d.value()->rotation[3],
-    gxf_pose_3d.value()->rotation[6],
-    gxf_pose_3d.value()->rotation[1],
-    gxf_pose_3d.value()->rotation[4],
-    gxf_pose_3d.value()->rotation[7],
-    gxf_pose_3d.value()->rotation[2],
-    gxf_pose_3d.value()->rotation[5],
-    gxf_pose_3d.value()->rotation[8]};
-  tf2::Quaternion quaternion;
-  rot_mat.getRotation(quaternion);
-  transform_stamped.transform.rotation.x = quaternion.x();
-  transform_stamped.transform.rotation.y = quaternion.y();
-  transform_stamped.transform.rotation.z = quaternion.z();
-  transform_stamped.transform.rotation.w = quaternion.w();
+  tf2::Matrix3x3 cam_pose_rig_rot_mat = {
+    cam_pose_rig.value()->rotation[0],
+    cam_pose_rig.value()->rotation[1],
+    cam_pose_rig.value()->rotation[2],
+    cam_pose_rig.value()->rotation[3],
+    cam_pose_rig.value()->rotation[4],
+    cam_pose_rig.value()->rotation[5],
+    cam_pose_rig.value()->rotation[6],
+    cam_pose_rig.value()->rotation[7],
+    cam_pose_rig.value()->rotation[8]};
+
+  tf2::Transform cam_optical_pose_rig_optical(
+    cam_pose_rig_rot_mat,
+    cam_pose_rig_translation);
+
+  // Shifting extrinsics from gxf to ros conventions
+  // Extrinsics GXF Convention => right_pose_left AKA left_wrt_right
+  // Extrinsics ROS Convetion =>  left_pose_right AKA right_wrt_left
+  tf2::Transform rig_optical_pose_camera_optical = cam_optical_pose_rig_optical.inverse();
+
+  // Computing camera_link->optical tf transform
+  tf2::Transform rig_body_pose_camera_optical =
+    cam_link_pose_optical_ * rig_optical_pose_camera_optical;
+
+  transform_stamped.transform.translation.x = rig_body_pose_camera_optical.getOrigin()[0];
+  transform_stamped.transform.translation.y = rig_body_pose_camera_optical.getOrigin()[1];
+  transform_stamped.transform.translation.z = rig_body_pose_camera_optical.getOrigin()[2];
+  transform_stamped.transform.rotation.x = rig_body_pose_camera_optical.getRotation().getX();
+  transform_stamped.transform.rotation.y = rig_body_pose_camera_optical.getRotation().getY();
+  transform_stamped.transform.rotation.z = rig_body_pose_camera_optical.getRotation().getZ();
+  transform_stamped.transform.rotation.w = rig_body_pose_camera_optical.getRotation().getW();
 
   tf_broadcaster_->sendTransform(transform_stamped);
 }

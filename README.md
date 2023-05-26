@@ -3,6 +3,7 @@
 <div align="center"><img src="resources/isaac_ros_argus_sample_raw.png" width="300" title="raw image"/> <img src="resources/isaac_ros_argus_sample_isp.png" width="300" title="isp processed image"/></div>
 
 ## Overview
+
 The Isaac ROS Argus Camera module contains an ROS 2 package for sensor processing to output images. Image sensors are connected on CSI and GMSL hardware interfaces to Jetson platforms. This package uses dedicated hardware engines to accelerate image processing. Output images are used in graphs of nodes for AI and CV perception packages, image compression for capture to disk by event recorders, and live-stream visuals for remote robot teleoperation.
 
 Isaac ROS Argus Camera provides with several sensor capture and processing features, including AWB (auto-white-balance), AE (auto-exposure), and noise reduction. Leveraging hardware engines in Jetson, Argus provides multi-camera frame synchronization, with very high precision frame acquisition timestamping and jitter less than 100us.
@@ -18,11 +19,10 @@ Argus Camera uses dedicated hardware engines to access the full memory bandwidth
 Widely available USB and Ethernet plug-in cameras can be used for robotics applications, but there is performance cost for this convenience. The I/O interface (USB or Ethernet) places the image from the camera directly into CPU-accessible memory. The camera driver makes a copy from the I/O interface using the CPU to make the image available to other applications. The Camera driver wrapper node in ROS performs another memcpy with the CPU from the driver to publish the image in ROS. Before a USB or Ethernet image arrives as a published topic, two CPU memcpy actions have been perfromed for every pixel. In contrast, the Argus Camera module processes sensor data into output image topics in ROS without the CPU touching a single pixel in the image.
 
 > **Note**: Argus Camera outputs sensor_msgs/Image at the sensor data rate, subject to performance capabilites of the Jetson platform(s). For example, a [Hawk camera](https://www.leopardimaging.com/li-ar0234cs-stereo-gmsl2-hawk/) configured for 30fps (frames per second) stereo 1920x1080 will output time-synchronized left and right camera frames sensor_msgs/Image at 30fps.
-
+<!-- Split blockquote -->
 > **Note**: Argus Camera is not supported on x86_64 platforms with discrete GPUs that do not have a CSI or GMSL interface to connect to a camera.
-
+<!-- Split blockquote -->
 > **Note**: See [Argus](https://docs.nvidia.com/jetson/l4t-multimedia/group__LibargusAPI.html) for more information on camera processing.
-
 
 ### Isaac ROS NITROS Acceleration
 
@@ -59,18 +59,18 @@ This package is powered by [NVIDIA Isaac Transport for ROS (NITROS)](https://dev
 
 ## Latest Update
 
-Update 2023-03-23: Update to be compatible with JetPack 5.1.1
+Update 2023-04-05: Update to be compatible with JetPack 5.1.1
 
 ## Supported Platforms
 
 This package is designed and tested to be compatible with ROS 2 Humble running on [Jetson](https://developer.nvidia.com/embedded-computing) with off-the-shelf cameras from NVIDIA partners (see the [Reference Cameras](#reference-cameras) section for more details).
 > **Note**: x86_64 system is not supported.
-
+<!-- Split blockquote -->
 > **Note**: Versions of ROS 2 earlier than Humble are **not** supported. This package depends on specific ROS 2 implementation features that were only introduced beginning with the Humble release.
 
-| Platform | Hardware                                                                                                                                                                                                 | Software                                                       | Notes                                                                                                                                                                                                                                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Jetson   | [Jetson Orin](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/) <br> [Jetson Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-agx-xavier/) | [JetPack 5.1.1](https://developer.nvidia.com/embedded/jetpack) | The [CSI](https://en.wikipedia.org/wiki/Camera_Serial_Interface) camera device needs to be connected and presented as a video device (e.g. `/dev/video0`). <br><br> For best performance, ensure that [power settings](https://docs.nvidia.com/jetson/archives/r34.1/DeveloperGuide/text/SD/PlatformPowerAndPerformance.html) are configured appropriately. |
+| Platform | Hardware                                                                                                                                                                                                  | Software                                                       | Notes                                                                                                                                                                                                                                                                                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Jetson   | [Jetson Orin](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-orin/) </br> [Jetson Xavier](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/jetson-agx-xavier/) | [JetPack 5.1.1](https://developer.nvidia.com/embedded/jetpack) | The [CSI](https://en.wikipedia.org/wiki/Camera_Serial_Interface) camera device needs to be connected and presented as a video device (e.g. `/dev/video0`). </br></br> For best performance, ensure that [power settings](https://docs.nvidia.com/jetson/archives/r34.1/DeveloperGuide/text/SD/PlatformPowerAndPerformance.html) are configured appropriately. |
 
 ### Docker
 
@@ -106,7 +106,7 @@ NVIDIA has worked with our camera partners to provide the modules listed below w
     ```bash
     git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros
     ```
-    
+
     ```bash
     git clone https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_image_pipeline
     ```
@@ -168,7 +168,7 @@ ros2 launch isaac_ros_argus_camera isaac_ros_argus_camera_stereo.launch.py
 
 | ROS Parameter              | Type     | Default     | Description                                                                                                     |
 | -------------------------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------- |
-| `camera_id`                | `uint`   | `0`         | The video device index <br> E.g. `/dev/video0`                                                                  |
+| `camera_id`                | `uint`   | `0`         | The video device index </br> E.g. `/dev/video0`                                                                 |
 | `module_id`                | `uint`   | `0`         | The camera module index in the device tree when there is more than one of the same camera module connected      |
 | `mode`                     | `uint`   | `0`         | The resolution mode supported by the camera sensor and driver.                                                  |
 | `camera_type`              | `uint`   | `1`         | 0 for Monocular type camera; 1 for Stereo type camera                                                           |
@@ -215,9 +215,9 @@ The Isaac ROS Argus node uses the Argus Ext API to retrieve calibration paramete
 Refer to [this page](https://docs.nvidia.com/jetson/l4t-multimedia/classArgus_1_1Ext_1_1ISyncSensorCalibrationData.html) for the data structure of the calibration parameters.
 
 > **Note**: Each camera module should have stored the calibration parameters in internal memory like EEPROM, and the device driver must support the Argus Ext API to extract those parameters. Contact your camera vendor to get the required drivers.
-
+<!-- Split blockquote -->
 > **Note**: If your camera does not support the Argus Ext API, you can also specify a URL to a camera info `.ini` file parseable by the ROS [CameraInfoManager](http://wiki.ros.org/camera_info_manager) using the `camera_info_url` parameter on the Isaac ROS Argus node. This will allow you to provide parameters you may have calibrated using the ROS Camera Calibration package, for example.
-
+<!-- Split blockquote -->
 > **Note**: When the `camera_info_url` is provided, the loaded parameters override the `CameraInfo` from Argus Ext API.
 
 ## Troubleshooting
@@ -234,13 +234,13 @@ The Isaac ROS Argus node can fail to create a capture session inside the contain
 
 #### Solution
 
-Exit the Docker container and restart the `nvargus` daemon by running `sudo service nvargus-daemon restart`
+Exit the Docker container and restart the `nvargus` daemon by running `sudo systemctl restart nvargus-daemon.service`
 
 ## Updates
 
 | Date       | Changes                                    |
 | ---------- | ------------------------------------------ |
-| 2023-03-23 | Update to be compatible with JetPack 5.1.1 |
+| 2023-04-05 | Update to be compatible with JetPack 5.1.1 |
 | 2022-10-19 | Updated OSS licensing                      |
 | 2022-08-31 | Update to be compatible with JetPack 5.0.2 |
 | 2022-06-30 | Support NITROS acceleration                |

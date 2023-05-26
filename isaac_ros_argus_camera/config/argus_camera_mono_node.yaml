@@ -1,6 +1,6 @@
 %YAML 1.2
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -134,7 +134,7 @@ components:
 - name: pool
   type: nvidia::gxf::UnboundedAllocator
 - name: color_converter_operator
-  type: nvidia::cvcore::tensor_ops::StreamConvertColorFormat
+  type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
   parameters:
     output_type: "RGB_U8"
     receiver: data_receiver
@@ -148,16 +148,16 @@ components:
 name: global
 components:
 - name: adapter
-  type: nvidia::cvcore::tensor_ops::ImageAdapter
+  type: nvidia::isaac::tensor_ops::ImageAdapter
   parameters:
     message_type: "VideoBuffer"
 - name: stream
-  type: nvidia::cvcore::tensor_ops::TensorStream
+  type: nvidia::isaac::tensor_ops::TensorStream
   parameters:
     backend_type: "VPI"
     engine_type: "GPU"
 ---
-name: vault_left_image
+name: sink_left_image
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -168,14 +168,12 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
-name: vault_left_camerainfo
+name: sink_left_camerainfo
 components:
 - name: signal
   type: nvidia::gxf::DoubleBufferReceiver
@@ -186,12 +184,10 @@ components:
   parameters:
     receiver: signal
     min_size: 1
-- name: vault
-  type: nvidia::gxf::Vault
+- name: sink
+  type: nvidia::isaac_ros::MessageRelay
   parameters:
     source: signal
-    max_waiting_count: 1
-    drop_waiting: false
 ---
 components:
 - name: edge0
@@ -208,12 +204,12 @@ components:
   type: nvidia::gxf::Connection
   parameters:
     source: converter_left/data_transmitter
-    target: vault_left_image/signal
+    target: sink_left_image/signal
 - name: edge3
   type: nvidia::gxf::Connection
   parameters:
     source: splitter_left/camera_model_transmitter
-    target: vault_left_camerainfo/signal
+    target: sink_left_camerainfo/signal
 ---
 components:
 - name: clock
@@ -222,6 +218,7 @@ components:
   parameters:
     clock: clock
     stop_on_deadlock: false
+    check_recession_period_us: 100
 - type: nvidia::gxf::JobStatistics
   parameters:
     clock: clock

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,16 +26,16 @@ namespace argus
 namespace
 {
 
-constexpr char OUTPUT_COMPONENT_KEY_LEFT_IMAGE[] = "vault_left_image/vault";
+constexpr char OUTPUT_COMPONENT_KEY_LEFT_IMAGE[] = "sink_left_image/sink";
 constexpr char OUTPUT_TOPIC_NAME_LEFT_IMAGE[] = "left/image_raw";
 
-constexpr char OUTPUT_COMPONENT_KEY_RIGHT_IMAGE[] = "vault_right_image/vault";
+constexpr char OUTPUT_COMPONENT_KEY_RIGHT_IMAGE[] = "sink_right_image/sink";
 constexpr char OUTPUT_TOPIC_NAME_RIGHT_IMAGE[] = "right/image_raw";
 
-constexpr char OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO[] = "vault_left_camerainfo/vault";
+constexpr char OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO[] = "sink_left_camerainfo/sink";
 constexpr char OUTPUT_TOPIC_NAME_LEFT_CAMERAINFO[] = "left/camerainfo";
 
-constexpr char OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO[] = "vault_right_camerainfo/vault";
+constexpr char OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO[] = "sink_right_camerainfo/sink";
 constexpr char OUTPUT_TOPIC_NAME_RIGHT_CAMERAINFO[] = "right/camerainfo";
 
 constexpr char OUTPUT_DEFAULT_IMAGE_FORMAT[] = "nitros_image_rgb8";
@@ -81,10 +81,10 @@ const nitros::NitrosPublisherSubscriberConfigMap CONFIG_MAP = {
 };
 #pragma GCC diagnostic pop
 
-const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {
-  "isaac_ros_argus_camera_stereo",
+const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {};
+const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {
+  "config/extension_specs.yaml"
 };
-const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {};
 }  // namespace
 
 ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)

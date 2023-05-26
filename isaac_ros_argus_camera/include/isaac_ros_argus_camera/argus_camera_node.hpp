@@ -23,6 +23,8 @@
 #include <vector>
 
 #include "tf2_ros/transform_broadcaster.h"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Transform.h"
 
 #include "isaac_ros_nitros/nitros_node.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -74,6 +76,15 @@ protected:
 private:
   // Publisher for tf2.
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_{nullptr};
+
+  // Transform that converts from camera body frame to camera optical frame
+  // https://www.ros.org/reps/rep-0103.html
+  // Camera Link   ->  Optical
+  // x             ->  z
+  // y             ->  -x
+  // z             ->  -y
+  tf2::Transform cam_link_pose_optical_{tf2::Matrix3x3{0, 0, 1, -1, 0, 0, 0, -1, 0},
+    tf2::Vector3{0, 0, 0}};
 };
 
 }  // namespace argus
