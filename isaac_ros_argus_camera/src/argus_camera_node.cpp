@@ -42,7 +42,7 @@ namespace
 using DistortionType = nvidia::gxf::DistortionType;
 const std::unordered_map<std::string, DistortionType> g_ros_to_gxf_distortion_model({
           {"pinhole", DistortionType::Perspective},
-          {"plumb_bob", DistortionType::Polynomial},
+          {"plumb_bob", DistortionType::Brown},
           {"rational_polynomial", DistortionType::Polynomial},
           {"equidistant", DistortionType::FisheyeEquidistant}
         });
