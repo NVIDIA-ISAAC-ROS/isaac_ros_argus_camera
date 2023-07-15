@@ -118,8 +118,8 @@ NVIDIA has worked with our camera partners to provide the modules listed below w
 3. Launch the Docker container using the `run_dev.sh` script:
 
     ```bash
-    cd ~/workspaces/isaac_ros-dev/src/isaac_ros_common && \
-      ./scripts/run_dev.sh
+    cd ~/workspaces/isaac_ros-dev && \
+      ./src/isaac_ros_common/scripts/run_dev.sh
     ```
 
 4. Inside the container, build and source the workspace:
