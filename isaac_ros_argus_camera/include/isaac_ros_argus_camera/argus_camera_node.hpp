@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "tf2_ros/transform_broadcaster.h"
@@ -45,7 +46,10 @@ public:
     const std::string & app_yaml_filename,
     const nitros::NitrosPublisherSubscriberConfigMap & config_map,
     const std::vector<std::string> & preset_extension_spec_names,
-    const std::vector<std::string> & extension_spec_filenames);
+    const std::vector<std::string> & extension_spec_filenames,
+    const std::vector<std::string> & generator_rule_filenames,
+    const std::vector<std::pair<std::string, std::string>> & extensions,
+    const std::string & package_name);
 
   ~ArgusCameraNode();
 
@@ -70,6 +74,7 @@ protected:
   int camera_id_;
   int module_id_;
   int mode_;
+  int fsync_type_;
   int camera_type_;
   std::string camera_link_frame_name_;
 

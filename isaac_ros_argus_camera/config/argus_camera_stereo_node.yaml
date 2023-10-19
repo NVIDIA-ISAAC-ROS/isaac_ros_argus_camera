@@ -73,15 +73,12 @@ components:
     module_id: 0
     mode: 0
     framerate: 30
+    fsync_type: 1
     camera_type: 1
     output_format: 1
+    camera_provider: global_camera_provider/global_camera_provider
 - type: nvidia::gxf::PeriodicSchedulingTerm
   parameters:
-    transmitter: left_camera_output
-    recess_period: 30Hz
-- type: nvidia::gxf::PeriodicSchedulingTerm
-  parameters:
-    transmitter: right_camera_output
     recess_period: 30Hz
 ---
 name: rectify_parameters
@@ -135,6 +132,52 @@ components:
     left_camera_output: left_transmitter
     right_camera_output: right_transmitter
     allocator: allocator
+---
+name: stereo_camera_synchronizer
+components:
+- name: rx_left_camera
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 1
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: rx_left_camera
+    min_size: 1
+- name: rx_right_camera
+  type: nvidia::gxf::DoubleBufferReceiver
+  parameters:
+    capacity: 1
+    policy: 0
+- type: nvidia::gxf::MessageAvailableSchedulingTerm
+  parameters:
+    receiver: rx_right_camera
+    min_size: 1
+- name: tx_left_camera
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 1
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: tx_left_camera
+    min_size: 1
+- name: tx_right_camera
+  type: nvidia::gxf::DoubleBufferTransmitter
+  parameters:
+    capacity: 1
+    policy: 0
+- type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
+  parameters:
+    transmitter: tx_right_camera
+    min_size: 1
+- name: stereo_camera_synchronizer
+  type: nvidia::isaac::StereoCameraSynchronizer
+  parameters:
+    rx_left_camera: rx_left_camera
+    rx_right_camera: rx_right_camera
+    tx_left_camera: tx_left_camera
+    tx_right_camera: tx_right_camera
 ---
 name: splitter_left
 components:
@@ -254,7 +297,7 @@ components:
     receiver: data_receiver
     min_size: 1
 - name: data_transmitter
-  parameters: 
+  parameters:
     capacity: 30
     policy: 0
   type: nvidia::gxf::DoubleBufferTransmitter
@@ -273,6 +316,7 @@ components:
     pool: pool
     input_adapter: global/adapter
     output_adapter: global/adapter
+    input_name: "frame"
     output_name: "frame"
     stream: global/stream
 ---
@@ -364,6 +408,10 @@ components:
 - type: nvidia::gxf::Connection
   parameters:
     source: rectify_parameters/left_transmitter
+    target: stereo_camera_synchronizer/rx_left_camera
+- type: nvidia::gxf::Connection
+  parameters:
+    source: stereo_camera_synchronizer/tx_left_camera
     target: splitter_left/data_receiver
 - type: nvidia::gxf::Connection
   parameters:
@@ -384,6 +432,10 @@ components:
 - type: nvidia::gxf::Connection
   parameters:
     source: rectify_parameters/right_transmitter
+    target: stereo_camera_synchronizer/rx_right_camera
+- type: nvidia::gxf::Connection
+  parameters:
+    source: stereo_camera_synchronizer/tx_right_camera
     target: splitter_right/data_receiver
 - type: nvidia::gxf::Connection
   parameters:
@@ -397,11 +449,12 @@ components:
 components:
 - name: clock
   type: nvidia::gxf::RealtimeClock
-- type: nvidia::gxf::GreedyScheduler
+- type: nvidia::gxf::MultiThreadScheduler
   parameters:
     clock: clock
     stop_on_deadlock: false
-    check_recession_period_us: 100
+    check_recession_period_ms: 0.05
+    worker_thread_number: 2
 - type: nvidia::gxf::JobStatistics
   parameters:
     clock: clock

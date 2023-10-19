@@ -14,39 +14,17 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+#include "extensions/utils/stereo_camera_synchronizer.hpp"
+#include "gxf/std/extension_factory_helper.hpp"
 
-#ifndef ISAAC_ROS_ARGUS_CAMERA__ARGUS_CAMERA_MONO_NODE_HPP_
-#define ISAAC_ROS_ARGUS_CAMERA__ARGUS_CAMERA_MONO_NODE_HPP_
+GXF_EXT_FACTORY_BEGIN()
 
-#include <string>
+GXF_EXT_FACTORY_SET_INFO(0xa722f33021690730, 0x8efa17986d37641d, "NvIsaacUtilsExtension",
+                         "Extension containing miscellaneous utility components", "Isaac SDK",
+                         "2.0.0", "LICENSE");
 
-#include "isaac_ros_argus_camera/argus_camera_node.hpp"
-#include "isaac_ros_nitros/nitros_node.hpp"
-#include "rclcpp/rclcpp.hpp"
+GXF_EXT_FACTORY_ADD(0x8760c3e2306c1ff6, 0xb9f0fb97cef0110f,
+                    nvidia::isaac::StereoCameraSynchronizer, nvidia::gxf::Codelet,
+                    "Copies timestamp from left input msg to right input msg");
 
-namespace nvidia
-{
-namespace isaac_ros
-{
-namespace argus
-{
-
-class ArgusMonoNode : public ArgusCameraNode
-{
-public:
-  explicit ArgusMonoNode(const rclcpp::NodeOptions & options);
-  ~ArgusMonoNode();
-
-private:
-  std::string optical_frame_name_;
-
-  std::string camera_info_url_;
-
-  sensor_msgs::msg::CameraInfo::SharedPtr camera_info_;
-};
-
-}  // namespace argus
-}  // namespace isaac_ros
-}  // namespace nvidia
-
-#endif  // ISAAC_ROS_ARGUS_CAMERA__ARGUS_CAMERA_MONO_NODE_HPP_
+GXF_EXT_FACTORY_END()

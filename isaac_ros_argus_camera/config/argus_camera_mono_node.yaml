@@ -68,11 +68,12 @@ components:
     module_id: 0
     mode: 0
     framerate: 30
+    fsync_type: 1
     camera_type: 0
     output_format: 1
+    camera_provider: global_camera_provider/global_camera_provider
 - type: nvidia::gxf::PeriodicSchedulingTerm
   parameters:
-    transmitter: left_camera_output
     recess_period: 30Hz
 ---
 name: splitter_left
@@ -142,7 +143,8 @@ components:
     pool: pool
     input_adapter: global/adapter
     output_adapter: global/adapter
-    output_name: "image"
+    input_name: "frame"
+    output_name: "frame"
     stream: global/stream
 ---
 name: global
@@ -214,11 +216,12 @@ components:
 components:
 - name: clock
   type: nvidia::gxf::RealtimeClock
-- type: nvidia::gxf::GreedyScheduler
+- type: nvidia::gxf::MultiThreadScheduler
   parameters:
     clock: clock
     stop_on_deadlock: false
-    check_recession_period_us: 100
+    check_recession_period_ms: 0.05
+    worker_thread_number: 2
 - type: nvidia::gxf::JobStatistics
   parameters:
     clock: clock

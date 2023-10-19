@@ -15,7 +15,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.23.2)
+cmake_minimum_required(VERSION 3.22.1)
 project(isaac_ros_argus_camera LANGUAGES C CXX)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -28,8 +28,7 @@ message( STATUS "Architecture: ${ARCHITECTURE}" )
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
-# aarch64
-
+ament_auto_add_library(argus_nitros_context SHARED src/argus_nitros_context.cpp)
 ament_auto_add_library(base_node SHARED src/argus_camera_node.cpp)
 ament_auto_add_library(mono_node SHARED src/argus_camera_mono_node.cpp)
 rclcpp_components_register_nodes(mono_node "nvidia::isaac_ros::argus::ArgusMonoNode")
@@ -39,9 +38,19 @@ ament_auto_add_library(stereo_node SHARED src/argus_camera_stereo_node.cpp)
 rclcpp_components_register_nodes(stereo_node "nvidia::isaac_ros::argus::ArgusStereoNode")
 set(node_plugins "${node_plugins}nvidia::isaac_ros::argus::ArgusStereoNode;$<TARGET_FILE:stereo_node>\n")
 
+# Utils(for StereoCameraSynchronizer)
+add_subdirectory(gxf/utils)
+install(TARGETS gxf_utils DESTINATION share/${PROJECT_NAME}/gxf/lib/utils)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+
+  # The FindPythonInterp and FindPythonLibs modules are removed
+  if(POLICY CMP0148)
+    cmake_policy(SET CMP0148 OLD)
+  endif()
 
   find_package(launch_testing_ament_cmake REQUIRED)
   # Only add camera tests if on Jetson platform

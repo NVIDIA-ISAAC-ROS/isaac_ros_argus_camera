@@ -5,7 +5,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -81,9 +81,29 @@ const nitros::NitrosPublisherSubscriberConfigMap CONFIG_MAP = {
 };
 #pragma GCC diagnostic pop
 
-const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {};
-const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {
-  "config/extension_specs.yaml"
+constexpr char PACKAGE_NAME[] = "isaac_ros_argus_camera";
+const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {
+  "isaac_ros_argus_camera_stereo",
+};
+const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {};
+const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
+  {"isaac_ros_gxf", "gxf/lib/std/libgxf_std.so"},
+  {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
+  {"isaac_ros_gxf", "gxf/lib/serialization/libgxf_serialization.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_gxf_helpers.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_sight.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_atlas.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_isaac_messages.so"},
+  {"isaac_ros_gxf", "gxf/lib/multimedia/libgxf_multimedia.so"},
+  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_tensorops.so"},
+  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_rectify_params_generator.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_timestamp_correlator.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_argus.so"},
+  {"isaac_ros_gxf", "gxf/lib/libgxf_message_compositor.so"},
+  {"isaac_ros_argus_camera", "gxf/lib/utils/libgxf_utils.so"}
+};
+const std::vector<std::string> GENERATOR_RULE_FILENAMES = {
+  "config/namespace_injector_rule.yaml"
 };
 }  // namespace
 
@@ -93,12 +113,16 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
     APP_YAML_FILENAME,
     CONFIG_MAP,
     PRESET_EXTENSION_SPEC_NAMES,
-    EXTENSION_SPEC_FILENAMES)
+    EXTENSION_SPEC_FILENAMES,
+    GENERATOR_RULE_FILENAMES,
+    EXTENSIONS,
+    PACKAGE_NAME)
 {
   camera_id_ = declare_parameter<int>("camera_id", 0);
   module_id_ = declare_parameter<int>("module_id", 0);
   mode_ = declare_parameter<int>("mode", 0);
   camera_type_ = declare_parameter<int>("camera_type", 1);
+  fsync_type_ = declare_parameter<int>("fsync_type", 1);
   camera_link_frame_name_ = declare_parameter<std::string>("camera_link_frame_name", "camera");
   left_optical_frame_name_ = declare_parameter<std::string>("left_optical_frame_name", "left_cam");
   right_optical_frame_name_ =
