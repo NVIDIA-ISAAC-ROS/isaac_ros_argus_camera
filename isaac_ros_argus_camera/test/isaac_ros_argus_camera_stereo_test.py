@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -96,12 +96,12 @@ class IsaacArgusStereoNodeTest(IsaacROSBaseTest):
             done = False
 
             while time.time() < end_time:
-
                 rclpy.spin_once(self.node, timeout_sec=(0.1))
                 if len(received_messages) > 0:
                     done = True
                     break
             self.assertTrue(done, 'Appropriate output not received')
+
             for received_message in received_messages:
                 self.assertTrue(received_message[0].header.stamp ==
                                 received_message[1].header.stamp and

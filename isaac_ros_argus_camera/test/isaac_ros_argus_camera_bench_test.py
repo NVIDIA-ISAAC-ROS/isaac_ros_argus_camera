@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from collections import defaultdict
 import os
 import pathlib
 import shlex
@@ -41,6 +40,9 @@ MS_TO_NS = 10**6
 MAX_ROW_WIDTH = 70
 JITTER_TOLERANCE = 5
 
+EXCEED_TOLERANCE_PERCENT_LIMIT = 5
+FPS_ACCEPTABLE_VARIANCE = 2
+
 """
 Bench Test for Isaac ROS Argus
 
@@ -52,7 +54,7 @@ Test including:
     1. CPU Usage
     2. GPU Usage
 - Quality
-    1. left/right timestamp match
+    1. left/right timestamp match (exact sync)
 """
 
 
@@ -105,107 +107,87 @@ class IsaacArgusBenchTest(IsaacROSBaseTest):
             self.skipTest('No camera detected! Skipping test.')
         else:
             TIMEOUT = 30
-            received_messages = {}
+            received_messages = []
 
             topics = ['left/image_raw', 'right/image_raw', 'left/camerainfo', 'right/camerainfo']
             self.generate_namespace_lookup(topics)
 
-            subs = self.create_logging_subscribers(
+            self.create_exact_time_sync_logging_subscribers(
                 [('left/image_raw', Image), ('right/image_raw', Image),
                  ('left/camerainfo', CameraInfo), ('right/camerainfo', CameraInfo)],
                 received_messages,
                 accept_multiple_messages=True)
-            try:
-                end_time = time.time() + TIMEOUT
-                while time.time() < end_time:
-                    rclpy.spin_once(self.node, timeout_sec=(0.01))
 
-                # Check all messages are received
-                for topic in topics:
-                    self.assertTrue(len(received_messages[topic]) > 0, f'{topic} is not received')
+            end_time = time.time() + TIMEOUT
+            while time.time() < end_time:
+                rclpy.spin_once(self.node, timeout_sec=(0.01))
 
-                # Record the statistic of all topics
-                jitters, timestamps_ms, frame_rates, durations = {}, {}, {}, {}
-                exceed_tolerance_counts = defaultdict(int)
-                for topic in topics:
-                    messages = received_messages[topic]
-                    timestamps_ms[topic] = []
-                    for message in messages:
-                        message_timestamp_ms = \
-                            message.header.stamp.sec * SEC_TO_MS + \
-                            message.header.stamp.nanosec / MS_TO_NS
-                        timestamps_ms[topic].append(message_timestamp_ms)
+            self.assertTrue(len(received_messages) > 0, 'Did not receive synced messages')
 
-                    expected_diff = SEC_TO_MS/EXPECTED_FPS
-                    jitters[topic] = numpy.abs(numpy.diff(timestamps_ms[topic]))
-                    for index in range(len(jitters[topic])):
-                        jitter = abs(jitters[topic][index] - expected_diff)
-                        if(jitter > JITTER_TOLERANCE):
-                            exceed_tolerance_counts[topic] += 1
-                        jitters[topic][index] = jitter
+            # Record the message statistic
+            exceed_tolerance_count = 0
+            timestamps_ms = []
+            for message in received_messages:
+                self.assertTrue(message[0].header.stamp ==
+                                message[1].header.stamp and
+                                message[1].header.stamp ==
+                                message[2].header.stamp and
+                                message[2].header.stamp ==
+                                message[3].header.stamp,
+                                'Time stamps of all images and camera infos are not equal')
+                message_timestamp_ms = \
+                    message[0].header.stamp.sec * SEC_TO_MS + \
+                    message[0].header.stamp.nanosec / MS_TO_NS
+                timestamps_ms.append(message_timestamp_ms)
 
-                    durations[topic] = timestamps_ms[topic][-1] - timestamps_ms[topic][0]
-                    if durations[topic] > 0:
-                        frame_rates[topic] = \
-                            len(received_messages[topic]) / (durations[topic] / SEC_TO_MS)
-                    else:
-                        self.node.get_logger().warning(
-                            'Could not compute MEAN_FRAME_RATE due to an invalid value of'
-                            f'RECEIVED_DURATION = {durations[topic]}')
-                        frame_rates[topic] = 0
+            expected_diff = SEC_TO_MS/EXPECTED_FPS
+            jitters = numpy.abs(numpy.diff(timestamps_ms))
+            for index in range(len(jitters)):
+                jitter = abs(jitters[index] - expected_diff)
+                if(jitter > JITTER_TOLERANCE):
+                    exceed_tolerance_count += 1
+                jitters[index] = jitter
 
-                # Find matched timestamps
-                left_cam_timestamps = timestamps_ms['left/camerainfo']
-                right_cam_timestamps = timestamps_ms['right/camerainfo']
-                left_index, right_index, matched_timestamps = 0, 0, 0
-                max_received_cam_length = max(len(left_cam_timestamps), len(right_cam_timestamps))
-                while (left_index < len(left_cam_timestamps) and
-                       right_index < len(right_cam_timestamps)):
-                    if left_cam_timestamps[left_index] == right_cam_timestamps[right_index]:
-                        left_index += 1
-                        right_index += 1
-                        matched_timestamps += 1
-                    elif left_cam_timestamps[left_index] < right_cam_timestamps[right_index]:
-                        left_index += 1
-                    else:
-                        right_index += 1
+            duration = timestamps_ms[-1] - timestamps_ms[0]
+            if duration > 0:
+                frame_rate = \
+                    len(timestamps_ms) / (duration / SEC_TO_MS)
+            else:
+                self.node.get_logger().warning(
+                    'Could not compute MEAN_FRAME_RATE due to an invalid value of'
+                    f'RECEIVED_DURATION = {duration}')
+                frame_rate = 0
 
-                # Report message statistics
-                for topic in topics:
-                    heading = f'Argus Camera Topic {topic} Statistics'
-                    self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
-                    self.node.get_logger().info(
-                        '| {:^{width}} |'.format(heading, width=MAX_ROW_WIDTH))
-                    self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
-                    self.node.get_logger().info(
-                        f'# of Received Frames: {len(received_messages[topic])}')
-                    self.node.get_logger().info(
-                        f'Delta between First & Last Received Frames (ms): '
-                        f'{float(durations[topic])}')
-                    self.node.get_logger().info(
-                        f'Mean Frame Rate (fps) : {frame_rates[topic]}')
-                    self.node.get_logger().info(
-                        f'Max. Jitter (ms) : {float(numpy.max(jitters[topic]))}')
-                    self.node.get_logger().info(
-                        f'Min. Jitter (ms) : {float(numpy.min(jitters[topic]))}')
-                    self.node.get_logger().info(
-                        f'Mean. Jitter (ms) : {float(numpy.mean(jitters[topic]))}')
-                    self.node.get_logger().info(
-                        f'% of Jitters out of tolerance ({JITTER_TOLERANCE} ms) : '
-                        f'{float(exceed_tolerance_counts[topic] * 100.0 / len(jitters[topic]))}')
-                    self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            exceed_tolerance_percent = exceed_tolerance_count * 100.0 / len(timestamps_ms)
 
-                # Report timestamp match statistics
-                heading = 'Argus Camera Topic Matching Statistics'
-                self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
-                self.node.get_logger().info(
-                    '| {:^{width}} |'.format(heading, width=MAX_ROW_WIDTH))
-                self.node.get_logger().info(
-                    f'# of Matched Pairs: {matched_timestamps}')
-                self.node.get_logger().info(
-                    f'% of Matched Pairs : '
-                    f'{float(matched_timestamps * 100.0 / max_received_cam_length)}')
-                self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            # Report message statistics
+            heading = 'Argus Camera Bench Test Statistics'
+            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            self.node.get_logger().info(
+                '| {:^{width}} |'.format(heading, width=MAX_ROW_WIDTH))
+            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            self.node.get_logger().info(
+                f'# of Synced Frame Groups: {len(timestamps_ms)}')
+            self.node.get_logger().info(
+                f'Delta between First & Last Received Frames (ms): '
+                f'{float(duration)}')
+            self.node.get_logger().info(
+                f'Mean Frame Rate (fps) : {frame_rate}')
+            self.node.get_logger().info(
+                f'Max. Jitter (ms) : {float(numpy.max(jitters))}')
+            self.node.get_logger().info(
+                f'Min. Jitter (ms) : {float(numpy.min(jitters))}')
+            self.node.get_logger().info(
+                f'Mean. Jitter (ms) : {float(numpy.mean(jitters))}')
+            self.node.get_logger().info(
+                f'% of Frame Groups Out Of Jitter Tolerance ({JITTER_TOLERANCE} ms) : '
+                f'{exceed_tolerance_percent}')
+            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
 
-            finally:
-                self.node.destroy_subscription(subs)
+            # Raise error if not meet the performance requirement
+            self.assertTrue(exceed_tolerance_percent < EXCEED_TOLERANCE_PERCENT_LIMIT,
+                            f'{exceed_tolerance_percent}% of jitters exceed the tolerance')
+            self.assertTrue(frame_rate > (EXPECTED_FPS - FPS_ACCEPTABLE_VARIANCE),
+                            f'Captured Frame rate {frame_rate} is less than expected')
+            self.assertTrue(frame_rate < (EXPECTED_FPS + FPS_ACCEPTABLE_VARIANCE),
+                            f'Captured frame rate {frame_rate} is larger than expected')

@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,6 +27,7 @@
 #include "gxf/multimedia/camera.hpp"
 #include "gxf/std/timestamp.hpp"
 #include "isaac_ros_argus_camera/argus_camera_node.hpp"
+#include "isaac_ros_argus_camera/argus_nitros_context.hpp"
 #include "isaac_ros_nitros_camera_info_type/nitros_camera_info.hpp"
 #include "isaac_ros_nitros_image_type/nitros_image.hpp"
 
@@ -47,25 +48,7 @@ const std::unordered_map<std::string, DistortionType> g_ros_to_gxf_distortion_mo
           {"equidistant", DistortionType::FisheyeEquidistant}
         });
 
-const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
-  {"isaac_ros_gxf", "gxf/lib/std/libgxf_std.so"},
-  {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
-  {"isaac_ros_gxf", "gxf/lib/serialization/libgxf_serialization.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_gxf_helpers.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_sight.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_atlas.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_isaac_messages.so"},
-  {"isaac_ros_gxf", "gxf/lib/multimedia/libgxf_multimedia.so"},
-  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_tensorops.so"},
-  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_rectify_params_generator.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_argus.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_message_compositor.so"}
-};
-constexpr char PACKAGE_NAME[] = "isaac_ros_argus_camera";
 constexpr char GXF_EXTRINSICS_NAME[] = "extrinsics";
-const std::vector<std::string> GENERATOR_RULE_FILENAMES = {
-  "config/namespace_injector_rule.yaml"
-};
 }  // namespace
 
 ArgusCameraNode::ArgusCameraNode(
@@ -73,18 +56,23 @@ ArgusCameraNode::ArgusCameraNode(
   const std::string & app_yaml_filename,
   const nitros::NitrosPublisherSubscriberConfigMap & config_map,
   const std::vector<std::string> & preset_extension_spec_names,
-  const std::vector<std::string> & extension_spec_filenames)
+  const std::vector<std::string> & extension_spec_filenames,
+  const std::vector<std::string> & generator_rule_filenames,
+  const std::vector<std::pair<std::string, std::string>> & extensions,
+  const std::string & package_name)
 : nitros::NitrosNode(options,
     app_yaml_filename,
     config_map,
     preset_extension_spec_names,
     extension_spec_filenames,
-    GENERATOR_RULE_FILENAMES,
-    EXTENSIONS,
-    PACKAGE_NAME),
+    generator_rule_filenames,
+    extensions,
+    package_name),
   camera_link_frame_name_("camera"),
   tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(*this))
 {
+  // Start the argus NITROS context gxf graph
+  GetArgusNitrosContext();
   registerSupportedType<nvidia::isaac_ros::nitros::NitrosCameraInfo>();
   registerSupportedType<nvidia::isaac_ros::nitros::NitrosImage>();
 }
@@ -262,12 +250,15 @@ void ArgusCameraNode::preLoadGraphCallback() {}
 
 void ArgusCameraNode::postLoadGraphCallback()
 {
+  RCLCPP_INFO(get_logger(), "[ArgusCameraNode] postLoadGraphCallback().");
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "camera_id", camera_id_);
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "module_id", module_id_);
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "mode", mode_);
+  getNitrosContext().setParameterInt32(
+    "argus_camera", "nvidia::isaac::ArgusCamera", "fsync_type", fsync_type_);
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "camera_type", camera_type_);
 }
