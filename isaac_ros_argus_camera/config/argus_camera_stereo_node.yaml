@@ -132,6 +132,10 @@ components:
     left_camera_output: left_transmitter
     right_camera_output: right_transmitter
     allocator: allocator
+- type: nvidia::gxf::MemoryAvailableSchedulingTerm
+  parameters:
+    allocator: allocator
+    min_blocks: 1
 ---
 name: stereo_camera_synchronizer
 components:
