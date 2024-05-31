@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,11 +32,11 @@ constexpr char OUTPUT_TOPIC_NAME_LEFT_IMAGE[] = "left/image_raw";
 constexpr char OUTPUT_COMPONENT_KEY_RIGHT_IMAGE[] = "sink_right_image/sink";
 constexpr char OUTPUT_TOPIC_NAME_RIGHT_IMAGE[] = "right/image_raw";
 
-constexpr char OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO[] = "sink_left_camerainfo/sink";
-constexpr char OUTPUT_TOPIC_NAME_LEFT_CAMERAINFO[] = "left/camerainfo";
+constexpr char OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO[] = "sink_left_camera_info/sink";
+constexpr char OUTPUT_TOPIC_NAME_LEFT_CAMERAINFO[] = "left/camera_info";
 
-constexpr char OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO[] = "sink_right_camerainfo/sink";
-constexpr char OUTPUT_TOPIC_NAME_RIGHT_CAMERAINFO[] = "right/camerainfo";
+constexpr char OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO[] = "sink_right_camera_info/sink";
+constexpr char OUTPUT_TOPIC_NAME_RIGHT_CAMERAINFO[] = "right/camera_info";
 
 constexpr char OUTPUT_DEFAULT_IMAGE_FORMAT[] = "nitros_image_rgb8";
 constexpr char OUTPUT_DEFAULT_CAMERAINFO_FORMAT[] = "nitros_camera_info";
@@ -87,20 +87,18 @@ const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {
 };
 const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {};
 const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
-  {"isaac_ros_gxf", "gxf/lib/std/libgxf_std.so"},
   {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
   {"isaac_ros_gxf", "gxf/lib/serialization/libgxf_serialization.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_gxf_helpers.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_sight.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_atlas.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_isaac_messages.so"},
-  {"isaac_ros_gxf", "gxf/lib/multimedia/libgxf_multimedia.so"},
-  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_tensorops.so"},
-  {"isaac_ros_image_proc", "gxf/lib/image_proc/libgxf_rectify_params_generator.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_timestamp_correlator.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_argus.so"},
-  {"isaac_ros_gxf", "gxf/lib/libgxf_message_compositor.so"},
-  {"isaac_ros_argus_camera", "gxf/lib/utils/libgxf_utils.so"}
+  {"gxf_isaac_gxf_helpers", "gxf/lib/libgxf_isaac_gxf_helpers.so"},
+  {"gxf_isaac_sight", "gxf/lib/libgxf_isaac_sight.so"},
+  {"gxf_isaac_atlas", "gxf/lib/libgxf_isaac_atlas.so"},
+  {"gxf_isaac_messages", "gxf/lib/libgxf_isaac_messages.so"},
+  {"gxf_isaac_tensorops", "gxf/lib/libgxf_isaac_tensorops.so"},
+  {"gxf_isaac_rectify", "gxf/lib/libgxf_isaac_rectify.so"},
+  {"gxf_isaac_timestamp_correlator", "gxf/lib/libgxf_isaac_timestamp_correlator.so"},
+  {"gxf_isaac_argus", "gxf/lib/libgxf_isaac_argus.so"},
+  {"gxf_isaac_message_compositor", "gxf/lib/libgxf_isaac_message_compositor.so"},
+  {"gxf_isaac_camera_utils", "gxf/lib/libgxf_isaac_camera_utils.so"}
 };
 const std::vector<std::string> GENERATOR_RULE_FILENAMES = {
   "config/namespace_injector_rule.yaml"
@@ -121,7 +119,6 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
   camera_id_ = declare_parameter<int>("camera_id", 0);
   module_id_ = declare_parameter<int>("module_id", 0);
   mode_ = declare_parameter<int>("mode", 0);
-  camera_type_ = declare_parameter<int>("camera_type", 1);
   fsync_type_ = declare_parameter<int>("fsync_type", 1);
   camera_link_frame_name_ = declare_parameter<std::string>("camera_link_frame_name", "camera");
   left_optical_frame_name_ = declare_parameter<std::string>("left_optical_frame_name", "left_cam");
@@ -131,6 +128,7 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
     declare_parameter<std::string>("left_camera_info_url", "");
   right_camera_info_url_ =
     declare_parameter<std::string>("right_camera_info_url", "");
+  wide_fov_ = declare_parameter<bool>("wide_fov", false);
 
   // Load camera info from files if provided
   if (!left_camera_info_url_.empty()) {
@@ -158,14 +156,14 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
     &ArgusCameraNode::ArgusImageCallback, this,
     std::placeholders::_1, std::placeholders::_2, right_optical_frame_name_);
 
-  // Adding callback for left camerainfo
+  // Adding callback for left camera_info
   config_map_[OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO].callback =
     std::bind(
     &ArgusCameraNode::ArgusCameraInfoCallback, this,
     std::placeholders::_1, std::placeholders::_2, camera_link_frame_name_,
     left_optical_frame_name_, left_camera_info_);
 
-  // Adding callback for right camerainfo
+  // Adding callback for right camera_info
   config_map_[OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO].callback =
     std::bind(
     &ArgusCameraNode::ArgusCameraInfoCallback, this,
@@ -176,6 +174,20 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
 }
 
 ArgusStereoNode::~ArgusStereoNode() = default;
+
+void ArgusStereoNode::postLoadGraphCallback()
+{
+  nvidia::isaac_ros::argus::ArgusCameraNode::postLoadGraphCallback();
+  RCLCPP_INFO(get_logger(), "[ArgusStereoNode] postLoadGraphCallback().");
+
+  if (wide_fov_) {
+    getNitrosContext().setParameterFloat64(
+      "rectify_parameters", "nvidia::isaac::RectifyParamsGenerator", "alpha", 0.7);
+    RCLCPP_INFO(
+      get_logger(), "[ArgusStereoNode] set alpha in rectify parameter generator to  \"%f\"",
+      0.7);
+  }
+}
 
 }  // namespace argus
 }  // namespace isaac_ros

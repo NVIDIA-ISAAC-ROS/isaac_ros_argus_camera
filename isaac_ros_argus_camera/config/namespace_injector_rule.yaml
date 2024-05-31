@@ -20,7 +20,5 @@ name: Argus Camera Mono Namespace Injector Rule
 operation: namespace_injector
 body:
   components:
-    - type: nvidia::isaac::ArgusCamera
-      path_parameter_keys: [left_camera_frame, right_camera_frame]
     - type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
       path_parameter_keys: [input_adapter, output_adapter, stream]

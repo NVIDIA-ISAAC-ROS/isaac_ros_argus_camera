@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -109,12 +109,12 @@ class IsaacArgusBenchTest(IsaacROSBaseTest):
             TIMEOUT = 30
             received_messages = []
 
-            topics = ['left/image_raw', 'right/image_raw', 'left/camerainfo', 'right/camerainfo']
+            topics = ['left/image_raw', 'right/image_raw', 'left/camera_info', 'right/camera_info']
             self.generate_namespace_lookup(topics)
 
             self.create_exact_time_sync_logging_subscribers(
                 [('left/image_raw', Image), ('right/image_raw', Image),
-                 ('left/camerainfo', CameraInfo), ('right/camerainfo', CameraInfo)],
+                 ('left/camera_info', CameraInfo), ('right/camera_info', CameraInfo)],
                 received_messages,
                 accept_multiple_messages=True)
 

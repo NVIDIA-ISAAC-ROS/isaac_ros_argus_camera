@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-#include "extensions/utils/stereo_camera_synchronizer.hpp"
+#include "extensions/camera_utils/stereo_camera_synchronizer.hpp"
 #include "gxf/std/extension_factory_helper.hpp"
 
 GXF_EXT_FACTORY_BEGIN()
 
-GXF_EXT_FACTORY_SET_INFO(0xa722f33021690730, 0x8efa17986d37641d, "NvIsaacUtilsExtension",
-                         "Extension containing miscellaneous utility components", "Isaac SDK",
+GXF_EXT_FACTORY_SET_INFO(0xa722f33021690730, 0x8efa17986d37641d, "NvIsaacCameraUtilsExtension",
+                         "Extension containing miscellaneous camera utility components", "Isaac SDK",
                          "2.0.0", "LICENSE");
 
 GXF_EXT_FACTORY_ADD(0x8760c3e2306c1ff6, 0xb9f0fb97cef0110f,

@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -259,8 +259,6 @@ void ArgusCameraNode::postLoadGraphCallback()
     "argus_camera", "nvidia::isaac::ArgusCamera", "mode", mode_);
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "fsync_type", fsync_type_);
-  getNitrosContext().setParameterInt32(
-    "argus_camera", "nvidia::isaac::ArgusCamera", "camera_type", camera_type_);
 }
 
 sensor_msgs::msg::CameraInfo::SharedPtr ArgusCameraNode::loadCameraInfoFromFile(

@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,16 +16,27 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import launch
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
+    launch_args = [
+        DeclareLaunchArgument(
+            'module_id',
+            default_value='0',
+            description='Index specifying the stereo camera module to use.'),
+    ]
+    module_id = LaunchConfiguration('module_id')
+
     argus_stereo_node = ComposableNode(
         name='argus_stereo',
         package='isaac_ros_argus_camera',
         plugin='nvidia::isaac_ros::argus::ArgusStereoNode',
         namespace='',
+        parameters=[{'module_id': module_id}],
     )
 
     argus_stereo_container = ComposableNodeContainer(
@@ -38,4 +49,4 @@ def generate_launch_description():
             arguments=['--ros-args', '--log-level', 'info'],
         )
 
-    return launch.LaunchDescription([argus_stereo_container])
+    return launch.LaunchDescription(launch_args + [argus_stereo_container])

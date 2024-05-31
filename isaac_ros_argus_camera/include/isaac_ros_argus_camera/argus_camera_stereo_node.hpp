@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2021-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,9 @@ public:
   explicit ArgusStereoNode(const rclcpp::NodeOptions & options);
   ~ArgusStereoNode();
 
+  // The callback to be implemented by users for any required initialization
+  void postLoadGraphCallback() override;
+
 private:
   std::string left_optical_frame_name_;
   std::string right_optical_frame_name_;
@@ -46,6 +49,8 @@ private:
 
   sensor_msgs::msg::CameraInfo::SharedPtr left_camera_info_;
   sensor_msgs::msg::CameraInfo::SharedPtr right_camera_info_;
+
+  bool wide_fov_;
 };
 
 }  // namespace argus

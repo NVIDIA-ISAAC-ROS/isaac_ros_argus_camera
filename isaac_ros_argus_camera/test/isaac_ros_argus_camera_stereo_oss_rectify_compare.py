@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-# Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ def generate_test_description():
             }],
             remappings=[
                 ('image_raw', 'left/image_raw'),
-                ('camera_info', 'left/camerainfo'),
+                ('camera_info', 'left/camera_info'),
                 ('image_rect', 'left/image_rect'),
                 ('camera_info_rect', 'left/camera_info_rect')
             ]
@@ -80,7 +80,7 @@ def generate_test_description():
             }],
             remappings=[
                 ('image_raw', 'right/image_raw'),
-                ('camera_info', 'right/camerainfo'),
+                ('camera_info', 'right/camera_info'),
                 ('image_rect', 'right/image_rect'),
                 ('camera_info_rect', 'right/camera_info_rect')
             ]
@@ -98,7 +98,7 @@ def generate_test_description():
             }],
             remappings=[
                 ('image', 'left/image_raw'),
-                ('camera_info', 'left/camerainfo'),
+                ('camera_info', 'left/camera_info'),
                 ('image_rect', 'left/image_rect_oss')
             ]
         )
@@ -115,7 +115,7 @@ def generate_test_description():
             }],
             remappings=[
                 ('image', 'right/image_raw'),
-                ('camera_info', 'right/camerainfo'),
+                ('camera_info', 'right/camera_info'),
                 ('image_rect', 'right/image_rect_oss')
             ]
         )
