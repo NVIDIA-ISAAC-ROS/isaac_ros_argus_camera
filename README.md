@@ -1,6 +1,6 @@
 # Isaac ROS Argus Camera
 
-ROS 2 packages based on NVIDIA `libArgus` library for hardware-accelerated CSI camera support.
+ROS 2 packages based on NVIDIA `libArgus` library for NVIDIA-accelerated CSI camera support.
 
 <div align="center"><img src="https://media.githubusercontent.com/media/NVIDIA-ISAAC-ROS/.github/main/resources/isaac_ros_docs/repositories_and_packages/isaac_ros_argus_camera/isaac_ros_argus_sample_raw.png/" width="300px" title="raw image"/>
 <img src="https://media.githubusercontent.com/media/NVIDIA-ISAAC-ROS/.github/main/resources/isaac_ros_docs/repositories_and_packages/isaac_ros_argus_camera/isaac_ros_argus_sample_isp.png/" width="300px" title="isp processed image"/></div>
@@ -87,4 +87,4 @@ Please visit the [Isaac ROS Documentation](https://nvidia-isaac-ros.github.io/re
 
 ## Latest
 
-Update 2023-10-18: Updated for Isaac ROS 2.0.0.
+Update 2024-05-30: Update to be compatible with JetPack 6.0

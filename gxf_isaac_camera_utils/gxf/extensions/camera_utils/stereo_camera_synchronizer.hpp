@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ namespace isaac {
 // even though in reality matched frames can differ by a few microseconds.
 class StereoCameraSynchronizer : public gxf::Codelet {
   gxf_result_t registerInterface(gxf::Registrar* registrar) override;
-  gxf_result_t start() override { return GXF_SUCCESS; }
+  gxf_result_t start() override;
   gxf_result_t tick() override;
   gxf_result_t stop() override { return GXF_SUCCESS; }
 
@@ -39,6 +39,8 @@ class StereoCameraSynchronizer : public gxf::Codelet {
   gxf::Parameter<gxf::Handle<gxf::Transmitter>> tx_right_camera_;
   gxf::Parameter<gxf::Handle<gxf::Transmitter>> tx_left_camera_;
   gxf::Parameter<int64_t> max_timestamp_diff_;
+  int64_t prev_left_unnamed_timestamp_, prev_right_unnamed_timestamp_;
+  int64_t prev_left_named_timestamp_, prev_right_named_timestamp_;
 };
 
 }  // namespace isaac

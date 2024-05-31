@@ -1,5 +1,5 @@
 // SPDX-FileCopyrightText: NVIDIA CORPORATION & AFFILIATES
-// Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2023-2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,8 @@ constexpr char ARGUS_NITROS_CONTEXT_YAML[] =
   "config/argus_nitros_context_graph.yaml";
 
 const std::vector<std::pair<std::string, std::string>> ARGUS_EXTENSIONS = {
-  {"isaac_ros_gxf", "gxf/lib/libgxf_argus.so"}
+  {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
+  {"gxf_isaac_argus", "gxf/lib/libgxf_isaac_argus.so"}
 };
 
 std::unique_ptr<nvidia::isaac_ros::nitros::NitrosContext> g_argus_nitros_context;
