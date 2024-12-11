@@ -17,7 +17,7 @@
 
 import os
 import pathlib
-import shlex
+import socket
 import subprocess
 import time
 
@@ -33,20 +33,28 @@ from sensor_msgs.msg import CameraInfo, Image
 
 @pytest.mark.rostest
 def generate_test_description():
-    device_id = 0
-    command = f'"if [ -c /dev/video{device_id} ]; then echo Device Found; \
-                else echo Device Not Found; fi"'
-    result = subprocess.run(shlex.split(command), shell=True, capture_output=True, text=True)
+    device_id = -1
+    command = 'if ls /dev/video* 1> /dev/null 2>&1;  \
+               then echo Device Found; \
+               else echo Device Not Found; fi'
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-    if(result.stdout.strip() == 'Device Found'):
+    if (result.stdout.strip() == 'Device Found'):
         IsaacArgusStereoNodeTest.skip_test = False
+
+        # restart the argus server
+        s = socket.socket(socket.AF_UNIX)
+        s.connect('/tmp/argus_restart_socket')
+        s.send(b'RESTART_SERVICE')
+        s.close()
+        time.sleep(1)
 
         argus_stereo_node = ComposableNode(
             name='argus_stereo',
             package='isaac_ros_argus_camera',
             plugin='nvidia::isaac_ros::argus::ArgusStereoNode',
             namespace=IsaacArgusStereoNodeTest.generate_namespace(),
-            parameters=[{'camera_id': device_id}]
+            parameters=[{'module_id': device_id}]
         )
 
         return IsaacArgusStereoNodeTest.generate_test_description([

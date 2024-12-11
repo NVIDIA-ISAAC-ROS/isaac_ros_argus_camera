@@ -31,7 +31,7 @@ class IsaacROSArgusStereoLaunchFragment(IsaacROSLaunchFragment):
     def get_interface_specs() -> Dict[str, Any]:
         return {
             'camera_resolution': {'width': 1920, 'height': 1200},
-            'camera_frame': 'left_cam',
+            'camera_frame': 'stereo_camera',
             'focal_length': {
                 'f_x': 480.0,   # Approximation - most Hawk cameras should be close to this value
                 'f_y': 460.0    # Approximation - most Hawk cameras should be close to this value
@@ -57,7 +57,7 @@ class IsaacROSArgusStereoLaunchFragment(IsaacROSLaunchFragment):
         return {
             'module_id': DeclareLaunchArgument(
                 'module_id',
-                default_value='0',
+                default_value='-1',
                 description='Index specifying the stereo camera module to use.'
             )}
 

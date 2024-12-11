@@ -18,7 +18,7 @@
 
 import os
 import pathlib
-import shlex
+import socket
 import subprocess
 import time
 
@@ -60,20 +60,28 @@ Test including:
 
 @pytest.mark.rostest
 def generate_test_description():
-    device_id = 0
-    command = f'"if [ -c /dev/video{device_id} ]; then echo Device Found; \
-                else echo Device Not Found; fi"'
-    result = subprocess.run(shlex.split(command), shell=True, capture_output=True, text=True)
+    device_id = -1
+    command = 'if ls /dev/video* 1> /dev/null 2>&1;  \
+               then echo Device Found; \
+               else echo Device Not Found; fi'
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-    if(result.stdout.strip() == 'Device Found'):
+    if (result.stdout.strip() == 'Device Found'):
         IsaacArgusBenchTest.skip_test = False
+
+        # restart the argus server
+        s = socket.socket(socket.AF_UNIX)
+        s.connect('/tmp/argus_restart_socket')
+        s.send(b'RESTART_SERVICE')
+        s.close()
+        time.sleep(1)
 
         argus_stereo_node = ComposableNode(
             name='argus_stereo',
             package='isaac_ros_argus_camera',
             plugin='nvidia::isaac_ros::argus::ArgusStereoNode',
             namespace=IsaacArgusBenchTest.generate_namespace(),
-            parameters=[{'camera_id': device_id}]
+            parameters=[{'module_id': device_id}]
         )
 
         return IsaacArgusBenchTest.generate_test_description([
@@ -135,16 +143,23 @@ class IsaacArgusBenchTest(IsaacROSBaseTest):
                                 message[2].header.stamp ==
                                 message[3].header.stamp,
                                 'Time stamps of all images and camera infos are not equal')
+                self.assertTrue(message[0].header.frame_id ==
+                                message[2].header.frame_id,
+                                'Frame IDs of all images and camera infos are not equal')
+                self.assertTrue(message[1].header.frame_id ==
+                                message[3].header.frame_id,
+                                'Frame IDs of all images and camera infos are not equal')
+
                 message_timestamp_ms = \
                     message[0].header.stamp.sec * SEC_TO_MS + \
                     message[0].header.stamp.nanosec / MS_TO_NS
                 timestamps_ms.append(message_timestamp_ms)
 
-            expected_diff = SEC_TO_MS/EXPECTED_FPS
+            expected_diff = SEC_TO_MS / EXPECTED_FPS
             jitters = numpy.abs(numpy.diff(timestamps_ms))
             for index in range(len(jitters)):
                 jitter = abs(jitters[index] - expected_diff)
-                if(jitter > JITTER_TOLERANCE):
+                if (jitter > JITTER_TOLERANCE):
                     exceed_tolerance_count += 1
                 jitters[index] = jitter
 
@@ -162,10 +177,10 @@ class IsaacArgusBenchTest(IsaacROSBaseTest):
 
             # Report message statistics
             heading = 'Argus Camera Bench Test Statistics'
-            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            self.node.get_logger().info('+-{}-+'.format('-' * MAX_ROW_WIDTH))
             self.node.get_logger().info(
                 '| {:^{width}} |'.format(heading, width=MAX_ROW_WIDTH))
-            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            self.node.get_logger().info('+-{}-+'.format('-' * MAX_ROW_WIDTH))
             self.node.get_logger().info(
                 f'# of Synced Frame Groups: {len(timestamps_ms)}')
             self.node.get_logger().info(
@@ -182,7 +197,7 @@ class IsaacArgusBenchTest(IsaacROSBaseTest):
             self.node.get_logger().info(
                 f'% of Frame Groups Out Of Jitter Tolerance ({JITTER_TOLERANCE} ms) : '
                 f'{exceed_tolerance_percent}')
-            self.node.get_logger().info('+-{}-+'.format('-'*MAX_ROW_WIDTH))
+            self.node.get_logger().info('+-{}-+'.format('-' * MAX_ROW_WIDTH))
 
             # Raise error if not meet the performance requirement
             self.assertTrue(exceed_tolerance_percent < EXCEED_TOLERANCE_PERCENT_LIMIT,

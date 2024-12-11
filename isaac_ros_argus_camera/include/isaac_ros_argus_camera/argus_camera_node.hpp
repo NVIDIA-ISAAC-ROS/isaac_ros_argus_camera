@@ -19,14 +19,16 @@
 #define ISAAC_ROS_ARGUS_CAMERA__ARGUS_CAMERA_NODE_HPP_
 
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/static_transform_broadcaster.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Transform.h"
 
+#include "gxf/multimedia/camera.hpp"
 #include "isaac_ros_nitros/nitros_node.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
@@ -37,6 +39,8 @@ namespace isaac_ros
 {
 namespace argus
 {
+
+enum StereoCameraSide { LEFT, RIGHT };
 
 class ArgusCameraNode : public nitros::NitrosNode
 {
@@ -62,24 +66,37 @@ public:
     const std::string parent_frame, const std::string child_frame,
     const sensor_msgs::msg::CameraInfo::SharedPtr camera_info);
 
+  // Callback to publish camera extrinsics to ROS TF tree for stereo cameras
+  // which may or may not include an IMU
+  void ArgusStereoCameraInfoCallback(
+    const gxf_context_t context, nitros::NitrosTypeBase & msg,
+    const std::string rig_frame, const std::string camera_frame,
+    const sensor_msgs::msg::CameraInfo::SharedPtr left_camera_info,
+    const sensor_msgs::msg::CameraInfo::SharedPtr right_camera_info,
+    const StereoCameraSide side
+  );
+
   // Callback to set frame_id
   void ArgusImageCallback(
     const gxf_context_t context, nitros::NitrosTypeBase & msg,
     const std::string frame_name);
 
-  sensor_msgs::msg::CameraInfo::SharedPtr loadCameraInfoFromFile(
-    const std::string camera_info_url);
+  // Callback to set frame_id in the case of a stereo camera
+  void ArgusStereoImageCallback(
+    const gxf_context_t context, nitros::NitrosTypeBase & msg,
+    const std::string frame_name);
 
 protected:
   int camera_id_;
   int module_id_;
   int mode_;
   int fsync_type_;
+  bool use_hw_timestamp_;
   std::string camera_link_frame_name_;
-
-private:
   // Publisher for tf2.
-  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_{nullptr};
+  std::unique_ptr<tf2_ros::StaticTransformBroadcaster> tf_broadcaster_{nullptr};
+  // set of child frames that have been published
+  std::set<std::string> tf_was_published_;
 
   // Transform that converts from camera body frame to camera optical frame
   // https://www.ros.org/reps/rep-0103.html
@@ -89,6 +106,30 @@ private:
   // z             ->  -y
   tf2::Transform cam_link_pose_optical_{tf2::Matrix3x3{0, 0, 1, -1, 0, 0, 0, -1, 0},
     tf2::Vector3{0, 0, 0}};
+
+  tf2::Transform right_camera_pose_rig_override_;
+  bool right_camera_override_tf_set_{false};
+
+  builtin_interfaces::msg::Time timestampFromGxfMessage(
+    const nvidia::gxf::Expected<nvidia::gxf::Entity> & gxf_msg_entity);
+
+  tf2::Transform rosTransformFromGxfTransform(
+    const nvidia::gxf::Handle<nvidia::gxf::Pose3D> & gxf_pose);
+
+  void fillTransformMsgFromTransform(
+    geometry_msgs::msg::TransformStamped & transform_msg,
+    const tf2::Transform & transform);
+
+  sensor_msgs::msg::CameraInfo::SharedPtr loadCameraInfoFromFile(
+    const std::string camera_info_url);
+
+  void updateMessageFromCameraInfo(
+    nvidia::gxf::Expected<nvidia::gxf::Entity> & msg_entity,
+    const sensor_msgs::msg::CameraInfo::SharedPtr camera_info);
+
+  tf2::Transform computeLeftOpticalPoseRightOptical(
+    const sensor_msgs::msg::CameraInfo::SharedPtr left_camera_info,
+    const sensor_msgs::msg::CameraInfo::SharedPtr right_camera_info);
 };
 
 }  // namespace argus

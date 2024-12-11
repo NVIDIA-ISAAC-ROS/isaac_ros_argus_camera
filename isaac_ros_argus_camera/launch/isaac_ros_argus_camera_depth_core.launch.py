@@ -31,7 +31,7 @@ class IsaacROSArgusDepthLaunchFragment(IsaacROSLaunchFragment):
     def get_interface_specs() -> Dict[str, Any]:
         return {
             'camera_resolution': {'width': 960, 'height': 576},
-            'camera_frame': 'left_cam',
+            'camera_frame': 'stereo_camera',
             'focal_length': {
                 'f_x': 480,  # Approximation - most Hawk cameras should be close to this value
                 'f_y': 460   # Approximation - most Hawk cameras should be close to this value

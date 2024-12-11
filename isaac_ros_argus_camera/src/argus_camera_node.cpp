@@ -15,6 +15,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#include <Eigen/Dense>
+
 #include <vector>
 
 #include "camera_info_manager/camera_info_manager.hpp"
@@ -24,7 +26,6 @@
 #include "tf2/LinearMath/Quaternion.h"
 
 #include "geometry_msgs/msg/transform_stamped.hpp"
-#include "gxf/multimedia/camera.hpp"
 #include "gxf/std/timestamp.hpp"
 #include "isaac_ros_argus_camera/argus_camera_node.hpp"
 #include "isaac_ros_argus_camera/argus_nitros_context.hpp"
@@ -42,13 +43,14 @@ namespace
 
 using DistortionType = nvidia::gxf::DistortionType;
 const std::unordered_map<std::string, DistortionType> g_ros_to_gxf_distortion_model({
-          {"pinhole", DistortionType::Perspective},
+          {"plumb_bob", DistortionType::Perspective},
           {"plumb_bob", DistortionType::Brown},
           {"rational_polynomial", DistortionType::Polynomial},
           {"equidistant", DistortionType::FisheyeEquidistant}
         });
 
 constexpr char GXF_EXTRINSICS_NAME[] = "extrinsics";
+constexpr char IMU_EXTRINSICS_NAME[] = "imu_extrinsics";
 }  // namespace
 
 ArgusCameraNode::ArgusCameraNode(
@@ -69,7 +71,7 @@ ArgusCameraNode::ArgusCameraNode(
     extensions,
     package_name),
   camera_link_frame_name_("camera"),
-  tf_broadcaster_(std::make_unique<tf2_ros::TransformBroadcaster>(*this))
+  tf_broadcaster_(std::make_unique<tf2_ros::StaticTransformBroadcaster>(*this))
 {
   // Start the argus NITROS context gxf graph
   GetArgusNitrosContext();
@@ -84,106 +86,26 @@ void ArgusCameraNode::ArgusImageCallback(
   msg.frame_id = frame_name;
 }
 
-void ArgusCameraNode::ArgusCameraInfoCallback(
-  const gxf_context_t context, nitros::NitrosTypeBase & msg,
-  const std::string parent_frame, const std::string child_frame,
-  const sensor_msgs::msg::CameraInfo::SharedPtr camera_info)
+void ArgusCameraNode::ArgusStereoImageCallback(
+  const gxf_context_t context, nitros::NitrosTypeBase & msg, const std::string frame_name)
 {
-  geometry_msgs::msg::TransformStamped transform_stamped;
-  auto msg_entity = nvidia::gxf::Entity::Shared(context, msg.handle);
+  (void)context;
+  const std::string optical_frame_name = frame_name + "_optical";
+  msg.frame_id = optical_frame_name;
+}
 
-  // Fill in CameraModel if camera info is provided
-  if (camera_info != nullptr) {
-    RCLCPP_DEBUG(
-      get_logger(), "[ArgusCameraNode] Overriding CameraModel with values loaded from URL");
-
-    auto gxf_camera_model = msg_entity->get<nvidia::gxf::CameraModel>();
-    if (!gxf_camera_model) {
-      std::stringstream error_msg;
-      error_msg <<
-        "[ArgusCameraNode] Failed to get the existing CameraModel object: " <<
-        GxfResultStr(gxf_camera_model.error());
-      RCLCPP_ERROR(
-        get_logger(), error_msg.str().c_str());
-      throw std::runtime_error(error_msg.str().c_str());
-    }
-
-    gxf_camera_model.value()->dimensions = {camera_info->width, camera_info->height};
-    gxf_camera_model.value()->focal_length = {
-      static_cast<float>(camera_info->k[0]), static_cast<float>(camera_info->k[4])};
-    gxf_camera_model.value()->principal_point = {
-      static_cast<float>(camera_info->k[2]), static_cast<float>(camera_info->k[5])};
-
-    const auto distortion = g_ros_to_gxf_distortion_model.find(camera_info->distortion_model);
-    if (distortion == std::end(g_ros_to_gxf_distortion_model)) {
-      std::stringstream error_msg;
-      error_msg <<
-        "[ArgusCameraNode] Unsupported distortion model from ROS \"" <<
-        camera_info->distortion_model.c_str() << "\"";
-      RCLCPP_ERROR(
-        get_logger(), error_msg.str().c_str());
-      throw std::runtime_error(error_msg.str().c_str());
-    } else {
-      gxf_camera_model.value()->distortion_type = distortion->second;
-    }
-
-    if (gxf_camera_model.value()->distortion_type == DistortionType::Polynomial) {
-      // prevents distortion parameters array access if its empty
-      // simulators may send empty distortion parameter array since images are already rectified
-      if (!camera_info->d.empty()) {
-        // distortion parameters in GXF: k1, k2, k3, k4, k5, k6, p1, p2
-        // distortion parameters in ROS message: k1, k2, p1, p2, k3 ...
-        gxf_camera_model.value()->distortion_coefficients[0] = camera_info->d[0];
-        gxf_camera_model.value()->distortion_coefficients[1] = camera_info->d[1];
-
-        for (uint16_t index = 2; index < camera_info->d.size() - 2; index++) {
-          gxf_camera_model.value()->distortion_coefficients[index] = camera_info->d[index + 2];
-        }
-        gxf_camera_model.value()->distortion_coefficients[6] = camera_info->d[2];
-        gxf_camera_model.value()->distortion_coefficients[7] = camera_info->d[3];
-      }
-    } else {
-      std::copy(
-        std::begin(camera_info->d), std::end(camera_info->d),
-        std::begin(gxf_camera_model.value()->distortion_coefficients));
-    }
-
-    // Set extrinsic information into message
-    auto gxf_pose_3d = msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
-    if (!gxf_pose_3d) {
-      std::stringstream error_msg;
-      error_msg << "[ArgusCameraNode] Failed to get Pose3D object from message entity: " <<
-        GxfResultStr(gxf_pose_3d.error());
-      RCLCPP_ERROR(
-        get_logger(), error_msg.str().c_str());
-      throw std::runtime_error(error_msg.str().c_str());
-    }
-
-    std::copy(
-      std::begin(camera_info->r), std::end(camera_info->r),
-      std::begin(gxf_pose_3d.value()->rotation));
-    if (camera_info->p[0] == 0.0f) {
-      gxf_pose_3d.value()->translation = {
-        static_cast<float>(camera_info->p[3]),
-        static_cast<float>(camera_info->p[7]),
-        static_cast<float>(camera_info->p[11])};
-    } else {
-      gxf_pose_3d.value()->translation = {
-        static_cast<float>(camera_info->p[3]) / static_cast<float>(camera_info->p[0]),
-        static_cast<float>(camera_info->p[7]),
-        static_cast<float>(camera_info->p[11])};
-    }
-  }
-
-  // Populate timestamp information
+builtin_interfaces::msg::Time ArgusCameraNode::timestampFromGxfMessage(
+  const nvidia::gxf::Expected<nvidia::gxf::Entity> & msg_entity)
+{
+  builtin_interfaces::msg::Time extracted_time;
   auto gxf_timestamp = msg_entity->get<nvidia::gxf::Timestamp>();
-  if (!gxf_timestamp) {    // Fallback to label 'timestamp'
+  if (!gxf_timestamp) {       // Fallback to label 'timestamp'
     gxf_timestamp = msg_entity->get<nvidia::gxf::Timestamp>("timestamp");
   }
   if (gxf_timestamp) {
-    transform_stamped.header.stamp.sec = static_cast<int32_t>(
+    extracted_time.sec = static_cast<int32_t>(
       gxf_timestamp.value()->acqtime / static_cast<uint64_t>(1e9));
-    transform_stamped.header.stamp.nanosec = static_cast<uint32_t>(
+    extracted_time.nanosec = static_cast<uint32_t>(
       gxf_timestamp.value()->acqtime % static_cast<uint64_t>(1e9));
   } else {
     RCLCPP_WARN(
@@ -191,62 +113,257 @@ void ArgusCameraNode::ArgusCameraInfoCallback(
       "[ArgusCameraNode] Failed to get timestamp");
   }
 
-  msg.frame_id = child_frame;
-  transform_stamped.header.frame_id = parent_frame;
-  transform_stamped.child_frame_id = child_frame;
+  return extracted_time;
+}
 
-  // Extract camera extrinsics
-  auto cam_pose_rig = msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
-  if (!cam_pose_rig) {
-    std::stringstream error_msg;
-    error_msg << "[ArgusCameraNode] Failed pose get Pose3D object from message entity: " <<
-      GxfResultStr(cam_pose_rig.error());
-    RCLCPP_ERROR(
-      get_logger(), error_msg.str().c_str());
-    throw std::runtime_error(error_msg.str().c_str());
-  }
-
-  const tf2::Vector3 cam_pose_rig_translation(
-    cam_pose_rig.value()->translation[0],
-    cam_pose_rig.value()->translation[1],
-    cam_pose_rig.value()->translation[2]);
+tf2::Transform ArgusCameraNode::rosTransformFromGxfTransform(
+  const nvidia::gxf::Handle<nvidia::gxf::Pose3D> & gxf_pose)
+{
+  const tf2::Vector3 translation(
+    gxf_pose->translation[0],
+    gxf_pose->translation[1],
+    gxf_pose->translation[2]);
   // tf2::Matrix3x3 is row major
-  tf2::Matrix3x3 cam_pose_rig_rot_mat = {
-    cam_pose_rig.value()->rotation[0],
-    cam_pose_rig.value()->rotation[1],
-    cam_pose_rig.value()->rotation[2],
-    cam_pose_rig.value()->rotation[3],
-    cam_pose_rig.value()->rotation[4],
-    cam_pose_rig.value()->rotation[5],
-    cam_pose_rig.value()->rotation[6],
-    cam_pose_rig.value()->rotation[7],
-    cam_pose_rig.value()->rotation[8]};
+  const tf2::Matrix3x3 rot_mat = {
+    gxf_pose->rotation[0],
+    gxf_pose->rotation[1],
+    gxf_pose->rotation[2],
+    gxf_pose->rotation[3],
+    gxf_pose->rotation[4],
+    gxf_pose->rotation[5],
+    gxf_pose->rotation[6],
+    gxf_pose->rotation[7],
+    gxf_pose->rotation[8]};
 
-  tf2::Transform cam_optical_pose_rig_optical(
-    cam_pose_rig_rot_mat,
-    cam_pose_rig_translation);
+  const tf2::Transform transform(
+    rot_mat,
+    translation);
 
   // Shifting extrinsics from gxf to ros conventions
   // Extrinsics GXF Convention => right_pose_left AKA left_wrt_right
   // Extrinsics ROS Convetion =>  left_pose_right AKA right_wrt_left
-  tf2::Transform rig_optical_pose_camera_optical = cam_optical_pose_rig_optical.inverse();
-
-  // Computing camera_link->optical tf transform
-  tf2::Transform rig_body_pose_camera_optical =
-    cam_link_pose_optical_ * rig_optical_pose_camera_optical;
-
-  transform_stamped.transform.translation.x = rig_body_pose_camera_optical.getOrigin()[0];
-  transform_stamped.transform.translation.y = rig_body_pose_camera_optical.getOrigin()[1];
-  transform_stamped.transform.translation.z = rig_body_pose_camera_optical.getOrigin()[2];
-  transform_stamped.transform.rotation.x = rig_body_pose_camera_optical.getRotation().getX();
-  transform_stamped.transform.rotation.y = rig_body_pose_camera_optical.getRotation().getY();
-  transform_stamped.transform.rotation.z = rig_body_pose_camera_optical.getRotation().getZ();
-  transform_stamped.transform.rotation.w = rig_body_pose_camera_optical.getRotation().getW();
-
-  tf_broadcaster_->sendTransform(transform_stamped);
+  tf2::Transform transform_inverse = transform.inverse();
+  return transform_inverse;
 }
 
-void ArgusCameraNode::preLoadGraphCallback() {}
+
+void ArgusCameraNode::fillTransformMsgFromTransform(
+  geometry_msgs::msg::TransformStamped & transform_msg,
+  const tf2::Transform & transform)
+{
+  transform_msg.transform.translation.x = transform.getOrigin().getX();
+  transform_msg.transform.translation.y = transform.getOrigin().getY();
+  transform_msg.transform.translation.z = transform.getOrigin().getZ();
+  transform_msg.transform.rotation.x = transform.getRotation().getX();
+  transform_msg.transform.rotation.y = transform.getRotation().getY();
+  transform_msg.transform.rotation.z = transform.getRotation().getZ();
+  transform_msg.transform.rotation.w = transform.getRotation().getW();
+}
+
+void ArgusCameraNode::ArgusCameraInfoCallback(
+  const gxf_context_t context, nitros::NitrosTypeBase & msg,
+  const std::string parent_frame, const std::string child_frame,
+  const sensor_msgs::msg::CameraInfo::SharedPtr camera_info)
+{
+  auto msg_entity = nvidia::gxf::Entity::Shared(context, msg.handle);
+
+  geometry_msgs::msg::TransformStamped transform_stamped;
+  msg.frame_id = child_frame;
+  transform_stamped.header.frame_id = parent_frame;
+  transform_stamped.child_frame_id = child_frame;
+  transform_stamped.header.stamp = timestampFromGxfMessage(msg_entity);
+
+  // Fill in CameraModel if camera info is provided
+  if (camera_info != nullptr) {
+    nvidia::isaac_ros::nitros::copy_ros_to_gxf_camera_info(*camera_info, msg_entity);
+  }
+  if (tf_was_published_.find(transform_stamped.child_frame_id) == tf_was_published_.end()) {
+    // Extract camera extrinsics
+    auto camera_optical_pose_rig_optical =
+      msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
+    if (!camera_optical_pose_rig_optical) {
+      std::stringstream error_msg;
+      error_msg << "[ArgusCameraNode] Failed pose get Pose3D object from message entity: " <<
+        GxfResultStr(camera_optical_pose_rig_optical.error());
+      RCLCPP_ERROR(
+        get_logger(), error_msg.str().c_str());
+      throw std::runtime_error(error_msg.str().c_str());
+    }
+
+    tf2::Transform rig_optical_pose_camera_optical =
+      rosTransformFromGxfTransform(camera_optical_pose_rig_optical.value());
+    // Computing camera_link->optical tf transform
+    tf2::Transform rig_body_pose_camera_optical =
+      cam_link_pose_optical_ * rig_optical_pose_camera_optical;
+    fillTransformMsgFromTransform(transform_stamped, rig_body_pose_camera_optical);
+
+    tf_broadcaster_->sendTransform(transform_stamped);
+    tf_was_published_.insert(transform_stamped.child_frame_id);
+  }
+}
+
+// perform the same computation as in stereo_info_creator.py, used only in the case of overrides
+tf2::Transform ArgusCameraNode::computeLeftOpticalPoseRightOptical(
+  const sensor_msgs::msg::CameraInfo::SharedPtr left_camera_info,
+  const sensor_msgs::msg::CameraInfo::SharedPtr right_camera_info)
+{
+  Eigen::Map<const Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> right_r_map(
+    right_camera_info->r.data());
+  Eigen::Matrix3d right_r = right_r_map;
+
+  Eigen::Map<const Eigen::Matrix<double, 3, 3, Eigen::RowMajor>> left_r_map(
+    left_camera_info->r.data());
+  Eigen::Matrix3d left_r = left_r_map;
+
+  Eigen::Map<const Eigen::Matrix<double, 3, 4, Eigen::RowMajor>> right_p_map(
+    right_camera_info->p.data());
+  Eigen::Matrix<double, 3, 4> right_p = right_p_map;
+
+  double f_x = right_camera_info->p[0];
+
+  // Compute the translation vector t = (1/f_x) * right_p's fourth column
+  Eigen::Vector3d t = (1.0 / f_x) * right_p.col(3).head<3>();
+
+  // Helper function to create a 4x4 transformation matrix
+  auto matrix4x4 = [](const Eigen::Matrix3d * rotation,
+      const Eigen::Vector3d * translation) -> Eigen::Matrix4d {
+      Eigen::Matrix4d pose_3d = Eigen::Matrix4d::Identity();
+      if (rotation != nullptr) {
+        pose_3d.block<3, 3>(0, 0) = *rotation;
+      }
+      if (translation != nullptr) {
+        pose_3d.block<3, 1>(0, 3) = *translation;
+      }
+      return pose_3d;
+    };
+
+  // Compute the three transformation matrices
+  Eigen::Matrix4d right_T_rectified_right =
+    matrix4x4(&right_r, nullptr).transpose();
+  Eigen::Matrix4d rectified_right_T_rectified_left =
+    matrix4x4(nullptr, &t);
+  Eigen::Matrix4d rectified_left_T_left = matrix4x4(&left_r, nullptr);
+
+  // Compute the final transformation matrix
+  Eigen::Matrix4d right_T_left = right_T_rectified_right *
+    rectified_right_T_rectified_left *
+    rectified_left_T_left;
+
+  // Extract rotation and translation components
+  tf2::Matrix3x3 rotation(
+    right_T_left(0, 0), right_T_left(0, 1), right_T_left(0, 2),
+    right_T_left(1, 0), right_T_left(1, 1), right_T_left(1, 2),
+    right_T_left(2, 0), right_T_left(2, 1), right_T_left(2, 2));
+
+  tf2::Vector3 translation(
+    right_T_left(0, 3), right_T_left(1, 3), right_T_left(2, 3));
+
+  tf2::Transform transform(rotation, translation);
+
+  // Take inverse to match ROS conventions
+  return transform.inverse();
+}
+
+void ArgusCameraNode::ArgusStereoCameraInfoCallback(
+  const gxf_context_t context, nitros::NitrosTypeBase & msg,
+  const std::string rig_frame, const std::string camera_frame,
+  const sensor_msgs::msg::CameraInfo::SharedPtr left_camera_info,
+  const sensor_msgs::msg::CameraInfo::SharedPtr right_camera_info,
+  const StereoCameraSide side)
+{
+  auto msg_entity = nvidia::gxf::Entity::Shared(context, msg.handle);
+  const std::string optical_frame_name = camera_frame + "_optical";
+  msg.frame_id = optical_frame_name;
+
+  if (side == LEFT && left_camera_info != nullptr && right_camera_info != nullptr) {
+    nvidia::isaac_ros::nitros::copy_ros_to_gxf_camera_info(*left_camera_info, msg_entity);
+  }
+  if (side == RIGHT && right_camera_info != nullptr && left_camera_info != nullptr) {
+    nvidia::isaac_ros::nitros::copy_ros_to_gxf_camera_info(*right_camera_info, msg_entity);
+    if (!right_camera_override_tf_set_) {
+      right_camera_pose_rig_override_ = computeLeftOpticalPoseRightOptical(
+        left_camera_info,
+        right_camera_info);
+      right_camera_override_tf_set_ = true;
+    }
+  }
+
+  geometry_msgs::msg::TransformStamped camera_transform_stamped;
+  camera_transform_stamped.header.frame_id = rig_frame;
+  camera_transform_stamped.child_frame_id = camera_frame;
+  camera_transform_stamped.header.stamp = timestampFromGxfMessage(msg_entity);
+
+  geometry_msgs::msg::TransformStamped camera_optical_transform_stamped;
+  camera_optical_transform_stamped.header.frame_id = camera_frame;
+  camera_optical_transform_stamped.child_frame_id = optical_frame_name;
+  camera_optical_transform_stamped.header.stamp = timestampFromGxfMessage(msg_entity);
+
+  if (tf_was_published_.find(camera_transform_stamped.child_frame_id) ==
+    tf_was_published_.end())
+  {
+    // Extract camera extrinsics
+    auto camera_optical_pose_rig_optical =
+      msg_entity->get<nvidia::gxf::Pose3D>(GXF_EXTRINSICS_NAME);
+    if (!camera_optical_pose_rig_optical) {
+      std::stringstream error_msg;
+      error_msg << "[ArgusCameraNode] Failed pose get Pose3D object from message entity: " <<
+        GxfResultStr(camera_optical_pose_rig_optical.error());
+      RCLCPP_ERROR(
+        get_logger(), error_msg.str().c_str());
+      throw std::runtime_error(error_msg.str().c_str());
+    }
+
+    tf2::Transform rig_optical_pose_camera_optical;
+    if (right_camera_override_tf_set_) {
+      rig_optical_pose_camera_optical = right_camera_pose_rig_override_;
+    } else {
+      rig_optical_pose_camera_optical = rosTransformFromGxfTransform(
+        camera_optical_pose_rig_optical.value());
+    }
+
+    // Computing camera_link->optical tf transform
+    tf2::Transform rig_body_pose_camera_optical =
+      cam_link_pose_optical_ * rig_optical_pose_camera_optical;
+
+    tf2::Transform rig_pose_camera = rig_body_pose_camera_optical *
+      cam_link_pose_optical_.inverse();
+
+    fillTransformMsgFromTransform(camera_transform_stamped, rig_pose_camera);
+    tf_broadcaster_->sendTransform(camera_transform_stamped);
+    tf_was_published_.insert(camera_transform_stamped.child_frame_id);
+
+    fillTransformMsgFromTransform(camera_optical_transform_stamped, cam_link_pose_optical_);
+    tf_broadcaster_->sendTransform(camera_optical_transform_stamped);
+    tf_was_published_.insert(camera_optical_transform_stamped.child_frame_id);
+  }
+
+  geometry_msgs::msg::TransformStamped imu_transform_stamped;
+  imu_transform_stamped.header.frame_id = rig_frame;
+  imu_transform_stamped.child_frame_id = rig_frame + "_imu";
+  imu_transform_stamped.header.stamp = timestampFromGxfMessage(msg_entity);
+
+  // If there is IMU info attached to the message then publish those as well
+  if (tf_was_published_.find(imu_transform_stamped.child_frame_id) == tf_was_published_.end()) {
+    auto maybe_imu_pose_rig_optical = msg_entity->get<nvidia::gxf::Pose3D>(IMU_EXTRINSICS_NAME);
+    if (maybe_imu_pose_rig_optical) {
+      tf2::Transform rig_optical_pose_imu =
+        rosTransformFromGxfTransform(maybe_imu_pose_rig_optical.value());
+
+      // Computing camera_link->imu tf transform
+      tf2::Transform rig_pose_imu =
+        cam_link_pose_optical_ * rig_optical_pose_imu;
+
+      fillTransformMsgFromTransform(imu_transform_stamped, rig_pose_imu);
+
+      tf_broadcaster_->sendTransform(imu_transform_stamped);
+      tf_was_published_.insert(imu_transform_stamped.child_frame_id);
+    }
+  }
+}
+
+void ArgusCameraNode::preLoadGraphCallback()
+{
+}
 
 void ArgusCameraNode::postLoadGraphCallback()
 {
@@ -259,6 +376,8 @@ void ArgusCameraNode::postLoadGraphCallback()
     "argus_camera", "nvidia::isaac::ArgusCamera", "mode", mode_);
   getNitrosContext().setParameterInt32(
     "argus_camera", "nvidia::isaac::ArgusCamera", "fsync_type", fsync_type_);
+  getNitrosContext().setParameterBool(
+    "argus_camera", "nvidia::isaac::ArgusCamera", "use_hw_timestamp", use_hw_timestamp_);
 }
 
 sensor_msgs::msg::CameraInfo::SharedPtr ArgusCameraNode::loadCameraInfoFromFile(
@@ -271,8 +390,17 @@ sensor_msgs::msg::CameraInfo::SharedPtr ArgusCameraNode::loadCameraInfoFromFile(
   camera_info_manager::CameraInfoManager cinfo(this, camera_name, camera_info_url);
   if (cinfo.validateURL(camera_info_url)) {
     if (cinfo.isCalibrated()) {
-      return std::make_shared<sensor_msgs::msg::CameraInfo>(
+      auto camera_info = std::make_shared<sensor_msgs::msg::CameraInfo>(
         sensor_msgs::msg::CameraInfo(cinfo.getCameraInfo()));
+      if (camera_info->p[7] != 0.0f || camera_info->p[11] != 0.0) {
+        std::stringstream warning_msg;
+        warning_msg << "[ArgusCameraNode] Camera info " << camera_name <<
+          " has non-zero values in p[7] or p[11] which are expected to be zero." <<
+          " See https://docs.ros2.org/latest/api/sensor_msgs/msg/CameraInfo.html";
+        RCLCPP_WARN(
+          get_logger(), warning_msg.str().c_str());
+      }
+      return camera_info;
     } else {
       std::stringstream error_msg;
       error_msg << "[ArgusCameraNode] Camera info " << camera_name << " not calibrated";

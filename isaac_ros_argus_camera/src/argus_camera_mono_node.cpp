@@ -60,10 +60,10 @@ const nitros::NitrosPublisherSubscriberConfigMap CONFIG_MAP = {
 #pragma GCC diagnostic pop
 
 constexpr char PACKAGE_NAME[] = "isaac_ros_argus_camera";
-const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {
-  "isaac_ros_argus_camera_mono",
+const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {};
+const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {
+  "config/isaac_ros_argus_camera_mono_spec.yaml",
 };
-const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {};
 const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
   {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
   {"isaac_ros_gxf", "gxf/lib/serialization/libgxf_serialization.so"},
@@ -97,8 +97,9 @@ ArgusMonoNode::ArgusMonoNode(const rclcpp::NodeOptions & options)
   module_id_ = declare_parameter<int>("module_id", 0);
   mode_ = declare_parameter<int>("mode", 0);
   fsync_type_ = declare_parameter<int>("fsync_type", 1);
+  use_hw_timestamp_ = declare_parameter<bool>("use_hw_timestamp", false);
   camera_link_frame_name_ = declare_parameter<std::string>("camera_link_frame_name", "camera");
-  optical_frame_name_ = declare_parameter<std::string>("optical_frame_name", "left_cam");
+  optical_frame_name_ = declare_parameter<std::string>("optical_frame_name", "camera_optical");
   camera_info_url_ = declare_parameter<std::string>("camera_info_url", "");
 
   // Load camera info from a file if provided
