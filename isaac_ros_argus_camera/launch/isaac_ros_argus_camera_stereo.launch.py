@@ -26,17 +26,31 @@ def generate_launch_description():
     launch_args = [
         DeclareLaunchArgument(
             'module_id',
-            default_value='0',
+            default_value='-1',
             description='Index specifying the stereo camera module to use.'),
+        DeclareLaunchArgument(
+            'left_camera_info_url',
+            default_value='',
+            description='URL for the left camera info file.'
+        ),
+        DeclareLaunchArgument(
+            'right_camera_info_url',
+            default_value='',
+            description='URL for the right camera info file.'
+        ),
     ]
     module_id = LaunchConfiguration('module_id')
+    left_camera_info_url = LaunchConfiguration('left_camera_info_url')
+    right_camera_info_url = LaunchConfiguration('right_camera_info_url')
 
     argus_stereo_node = ComposableNode(
         name='argus_stereo',
         package='isaac_ros_argus_camera',
         plugin='nvidia::isaac_ros::argus::ArgusStereoNode',
         namespace='',
-        parameters=[{'module_id': module_id}],
+        parameters=[{'module_id': module_id,
+                     'left_camera_info_url': left_camera_info_url,
+                     'right_camera_info_url': right_camera_info_url}],
     )
 
     argus_stereo_container = ComposableNodeContainer(

@@ -19,6 +19,8 @@ from typing import Any, Dict
 
 from isaac_ros_examples import IsaacROSLaunchFragment
 import launch
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
 
@@ -29,7 +31,7 @@ class IsaacROSArgusMonoLaunchFragment(IsaacROSLaunchFragment):
     def get_interface_specs() -> Dict[str, Any]:
         return {
             'camera_resolution': {'width': 1920, 'height': 1200},
-            'camera_frame': 'left_cam',
+            'camera_frame': 'camera',
             'focal_length': {
                 'f_x': 480.0,   # Approximation - most Hawk cameras should be close to this value
                 'f_y': 460.0    # Approximation - most Hawk cameras should be close to this value
@@ -38,6 +40,9 @@ class IsaacROSArgusMonoLaunchFragment(IsaacROSLaunchFragment):
 
     @staticmethod
     def get_composable_nodes(interface_specs: Dict[str, Any]) -> Dict[str, ComposableNode]:
+        camera_id = LaunchConfiguration('camera_id')
+        module_id = LaunchConfiguration('module_id')
+        camera_info_url = LaunchConfiguration('camera_info_url')
         return {
             'camera_node': ComposableNode(
                 name='argus_mono',
@@ -46,9 +51,32 @@ class IsaacROSArgusMonoLaunchFragment(IsaacROSLaunchFragment):
                 remappings=[
                     ('left/image_raw', 'image_raw'),
                     ('left/camera_info', 'camera_info')
-                ]
+                ],
+                parameters=[{'camera_id': camera_id,
+                             'module_id': module_id,
+                             'camera_info_url': camera_info_url}],
             )
         }
+
+    @staticmethod
+    def get_launch_actions(interface_specs: Dict[str, Any]) -> \
+            Dict[str, launch.actions.OpaqueFunction]:
+        return {
+            'camera_id': DeclareLaunchArgument(
+                'camera_id',
+                default_value='0',
+                description='Index specifying the stereo camera module to use.'
+            ),
+            'module_id': DeclareLaunchArgument(
+                'module_id',
+                default_value='0',
+                description='Index specifying the stereo camera module to use.'
+            ),
+            'camera_info_url': DeclareLaunchArgument(
+                'camera_info_url',
+                default_value='',
+                description='URL for the camera info file.'
+            )}
 
 
 def generate_launch_description():

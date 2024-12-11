@@ -17,7 +17,7 @@
 
 import os
 import pathlib
-import shlex
+import socket
 import subprocess
 import time
 
@@ -36,20 +36,28 @@ VISUALIZE = False
 
 @pytest.mark.rostest
 def generate_test_description():
-    device_id = 0
-    command = f'"if [ -c /dev/video{device_id} ]; then echo Device Found; \
-                else echo Device Not Found; fi"'
-    result = subprocess.run(shlex.split(command), shell=True, capture_output=True, text=True)
+    device_id = -1
+    command = 'if ls /dev/video* 1> /dev/null 2>&1;  \
+               then echo Device Found; \
+               else echo Device Not Found; fi'
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-    if(result.stdout.strip() == 'Device Found'):
+    if (result.stdout.strip() == 'Device Found'):
         IsaacArgusStereoNodeTest.skip_test = False
+
+        # restart the argus server
+        s = socket.socket(socket.AF_UNIX)
+        s.connect('/tmp/argus_restart_socket')
+        s.send(b'RESTART_SERVICE')
+        s.close()
+        time.sleep(1)
 
         argus_stereo_node = ComposableNode(
             name='argus_stereo',
             package='isaac_ros_argus_camera',
             plugin='nvidia::isaac_ros::argus::ArgusStereoNode',
             namespace=IsaacArgusStereoNodeTest.generate_namespace(),
-            parameters=[{'camera_id': device_id}]
+            parameters=[{'module_id': device_id}]
         )
 
         left_rectify_node = ComposableNode(
@@ -177,7 +185,7 @@ class IsaacArgusStereoNodeTest(IsaacROSBaseTest):
                 image_right_rect_oss = self.bridge.imgmsg_to_cv2(received_message[1])
                 image_right_rect = self.bridge.imgmsg_to_cv2(received_message[1])
                 image_left_rect = self.bridge.imgmsg_to_cv2(received_message[2])
-                if(VISUALIZE):
+                if (VISUALIZE):
                     cv2.imwrite('image_left_rect.png', image_left_rect)
                     cv2.imwrite('image_right_rect.png', image_right_rect)
                     cv2.imwrite('image_left_rect_oss.png', image_left_rect_oss)

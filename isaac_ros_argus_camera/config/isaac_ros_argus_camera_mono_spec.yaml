@@ -1,0 +1,126 @@
+%YAML 1.2
+# Copyright (c) 2022-2024, NVIDIA CORPORATION.  All rights reserved.
+#
+# NVIDIA CORPORATION and its licensors retain all intellectual property
+# and proprietary rights in and to this software, related documentation
+# and any modifications thereto.  Any use, reproduction, disclosure or
+# distribution of this software and related documentation without an express
+# license agreement from NVIDIA CORPORATION is strictly prohibited.
+---
+name: ArgusCameraMonoExtension
+version: 3.0.2
+components:
+  - id: [0xb588dfe1eb627257, 0x9cb8b7ee7e86359a]
+    type: nvidia::isaac::CameraProvider
+  - id: [0xd94385e5b35b4634, 0x9adb0d214a3865f6]
+    type: nvidia::isaac::PoseTree
+  - id: [0xd0c4ddad486a4a91, 0xb69c8a5304b205ef]
+    type: nvidia::isaac::PoseTreeSetup
+  - id: [0xd0c4ddad486a4a91, 0xb69c8a5304b205ef]
+    type: nvidia::isaac::AtlasFrontend
+  - id: [0xd0c4ddad486a4a91, 0xb69c8a5304b205ef]
+    type: nvidia::isaac::PoseTreeFrame
+  - id: [0xd0c4ddad486a4a91, 0xb69c8a5304b205ef]
+    type: nvidia::isaac::ArgusCamera
+    format_remapping:
+      nitros_image_nv12: 0
+      nitros_image_nv24: 1
+    input_output_groups:
+      - input_keys: []
+        output_keys: [left_camera_output]
+        input_format_keys: []
+        output_format_keys: [output_format]
+        supported_formats:
+          - platforms: [any]
+            details:
+              - input_formats: []
+                output_formats: [nitros_image_nv12]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+              - input_formats: []
+                output_formats: [nitros_image_nv24]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+  - id: [0xfc4d7b4d8fcc4daa, 0xa286056e0fcafa78]
+    type: nvidia::isaac::tensor_ops::StreamConvertColorFormat
+    format_remapping:
+      nitros_image_rgb8: RGB_U8
+      nitros_image_bgr8: BGR_U8
+      nitros_image_rgba8: RGBA_U8
+      nitros_image_bgra8: BGRA_U8
+      nitros_image_mono8: Y_U8
+      nitros_image_mono16: Y_U16
+      nitros_image_rgb16: RGB_U16
+      nitros_image_bgr16: BGR_U16
+      nitros_image_nv12: NV12
+      nitros_image_nv24: NV24
+    input_output_groups:
+      - input_keys: [receiver]
+        output_keys: [transmitter]
+        input_format_keys: []
+        output_format_keys: [output_type]
+        supported_formats:
+          - platforms: [any]
+            details:
+              - input_formats: [nitros_image_nv24]
+                output_formats: [nitros_image_nv24]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+              - input_formats: [nitros_image_nv12]
+                output_formats: [nitros_image_rgb8]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+              - input_formats: [nitros_image_nv12]
+                output_formats: [nitros_image_nv12]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+  - id: [0xfc4d7b4d8fcc4daa, 0xa286056e0fcafa78]
+    type: nvidia::isaac::tensor_ops::ImageAdapter
+  - id: [0xfc4d7b4d8fcc4daa, 0xa286056e0fcafa78]
+    type: nvidia::isaac::tensor_ops::TensorStream
+  - id: [0xfc4d7b4d8fcc4daa, 0xa286056e0fcafa78]
+    type: nvidia::isaac_ros::MessageSplitter
+    input_output_groups:
+      - input_keys: [rx]
+        output_keys: [image_tx, camera_model_tx]
+        input_format_keys: []
+        output_format_keys: []
+        supported_formats:
+          - platforms: [any]
+            details:
+              - input_formats: [nitros_image_rgb8]
+                output_formats: [nitros_image_rgb8, nitros_camera_info]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+              - input_formats: [nitros_image_nv12]
+                output_formats: [nitros_image_nv12, nitros_camera_info]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%
+              - input_formats: [nitros_image_nv24]
+                output_formats: [nitros_image_nv24, nitros_camera_info]
+                costs:
+                  throughput: 10bytes/s
+                  latency: 10ms
+                  power: 100J
+                  accuracy: 100%

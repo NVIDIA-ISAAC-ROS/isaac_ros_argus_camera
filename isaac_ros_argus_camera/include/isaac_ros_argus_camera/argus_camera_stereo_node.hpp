@@ -41,8 +41,8 @@ public:
   void postLoadGraphCallback() override;
 
 private:
-  std::string left_optical_frame_name_;
-  std::string right_optical_frame_name_;
+  std::string left_camera_frame_name_;
+  std::string right_camera_frame_name_;
 
   std::string left_camera_info_url_;
   std::string right_camera_info_url_;

@@ -82,10 +82,10 @@ const nitros::NitrosPublisherSubscriberConfigMap CONFIG_MAP = {
 #pragma GCC diagnostic pop
 
 constexpr char PACKAGE_NAME[] = "isaac_ros_argus_camera";
-const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {
-  "isaac_ros_argus_camera_stereo",
+const std::vector<std::string> PRESET_EXTENSION_SPEC_NAMES = {};
+const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {
+  "config/isaac_ros_argus_camera_stereo_spec.yaml",
 };
-const std::vector<std::string> EXTENSION_SPEC_FILENAMES = {};
 const std::vector<std::pair<std::string, std::string>> EXTENSIONS = {
   {"isaac_ros_gxf", "gxf/lib/cuda/libgxf_cuda.so"},
   {"isaac_ros_gxf", "gxf/lib/serialization/libgxf_serialization.so"},
@@ -117,13 +117,17 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
     PACKAGE_NAME)
 {
   camera_id_ = declare_parameter<int>("camera_id", 0);
-  module_id_ = declare_parameter<int>("module_id", 0);
+  module_id_ = declare_parameter<int>("module_id", -1);
   mode_ = declare_parameter<int>("mode", 0);
   fsync_type_ = declare_parameter<int>("fsync_type", 1);
-  camera_link_frame_name_ = declare_parameter<std::string>("camera_link_frame_name", "camera");
-  left_optical_frame_name_ = declare_parameter<std::string>("left_optical_frame_name", "left_cam");
-  right_optical_frame_name_ =
-    declare_parameter<std::string>("right_optical_frame_name", "right_cam");
+  use_hw_timestamp_ = declare_parameter<bool>("use_hw_timestamp", false);
+  camera_link_frame_name_ =
+    declare_parameter<std::string>("camera_link_frame_name", "stereo_camera");
+  left_camera_frame_name_ = declare_parameter<std::string>(
+    "left_camera_frame_name",
+    "stereo_camera_left");
+  right_camera_frame_name_ =
+    declare_parameter<std::string>("right_camera_frame_name", "stereo_camera_right");
   left_camera_info_url_ =
     declare_parameter<std::string>("left_camera_info_url", "");
   right_camera_info_url_ =
@@ -147,28 +151,28 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
   // Adding callback for left image
   config_map_[OUTPUT_COMPONENT_KEY_LEFT_IMAGE].callback =
     std::bind(
-    &ArgusCameraNode::ArgusImageCallback, this,
-    std::placeholders::_1, std::placeholders::_2, left_optical_frame_name_);
+    &ArgusCameraNode::ArgusStereoImageCallback, this,
+    std::placeholders::_1, std::placeholders::_2, left_camera_frame_name_);
 
   // Adding callback for right image
   config_map_[OUTPUT_COMPONENT_KEY_RIGHT_IMAGE].callback =
     std::bind(
-    &ArgusCameraNode::ArgusImageCallback, this,
-    std::placeholders::_1, std::placeholders::_2, right_optical_frame_name_);
+    &ArgusCameraNode::ArgusStereoImageCallback, this,
+    std::placeholders::_1, std::placeholders::_2, right_camera_frame_name_);
 
   // Adding callback for left camera_info
   config_map_[OUTPUT_COMPONENT_KEY_LEFT_CAMERAINFO].callback =
     std::bind(
-    &ArgusCameraNode::ArgusCameraInfoCallback, this,
+    &ArgusStereoNode::ArgusStereoCameraInfoCallback, this,
     std::placeholders::_1, std::placeholders::_2, camera_link_frame_name_,
-    left_optical_frame_name_, left_camera_info_);
+    left_camera_frame_name_, left_camera_info_, right_camera_info_, LEFT);
 
   // Adding callback for right camera_info
   config_map_[OUTPUT_COMPONENT_KEY_RIGHT_CAMERAINFO].callback =
     std::bind(
-    &ArgusCameraNode::ArgusCameraInfoCallback, this,
+    &ArgusStereoNode::ArgusStereoCameraInfoCallback, this,
     std::placeholders::_1, std::placeholders::_2, camera_link_frame_name_,
-    right_optical_frame_name_, right_camera_info_);
+    right_camera_frame_name_, left_camera_info_, right_camera_info_, RIGHT);
 
   startNitrosNode();
 }

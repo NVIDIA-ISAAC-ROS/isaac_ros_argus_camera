@@ -18,6 +18,7 @@
 import os
 import pathlib
 import shlex
+import socket
 import subprocess
 import time
 
@@ -40,8 +41,15 @@ def generate_test_description():
                 else echo Device Not Found; fi"'
     result = subprocess.run(shlex.split(command), shell=True, capture_output=True, text=True)
 
-    if(result.stdout.strip() == 'Device Found'):
+    if (result.stdout.strip() == 'Device Found'):
         IsaacArgusMonoNodeTest.skip_test = False
+
+        # restart the argus server
+        s = socket.socket(socket.AF_UNIX)
+        s.connect('/tmp/argus_restart_socket')
+        s.send(b'RESTART_SERVICE')
+        s.close()
+        time.sleep(1)
 
         argus_mono_node = ComposableNode(
             name='argus_mono',

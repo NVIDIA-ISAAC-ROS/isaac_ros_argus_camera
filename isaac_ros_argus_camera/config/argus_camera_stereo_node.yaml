@@ -41,12 +41,13 @@ components:
     left_camera_output: left_camera_output
     right_camera_output: right_camera_output
     camera_id: 0
-    module_id: 0
+    module_id: -1
     mode: 0
     framerate: 30
     fsync_type: 1
     camera_type: 1
-    output_format: 1
+    output_format: 0
+    use_hw_timestamp: false
     camera_provider: global_camera_provider/global_camera_provider
     analog_gain_1: 1.0
     analog_gain_2: 1.0
@@ -69,7 +70,6 @@ components:
   parameters:
     transmitter: right_camera_output
     min_size: 1
-
 ---
 name: rectify_parameters
 components:
@@ -245,7 +245,6 @@ components:
   type: nvidia::gxf::DoubleBufferTransmitter
   parameters:
     capacity: 1
-    policy: 0
 - type: nvidia::gxf::DownstreamReceptiveSchedulingTerm
   parameters:
     transmitter: data_transmitter
@@ -315,7 +314,6 @@ components:
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
     capacity: 1
-    policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
     receiver: signal
@@ -331,7 +329,6 @@ components:
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
     capacity: 1
-    policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
     receiver: signal
@@ -347,7 +344,6 @@ components:
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
     capacity: 1
-    policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
     receiver: signal
@@ -363,7 +359,6 @@ components:
   type: nvidia::gxf::DoubleBufferReceiver
   parameters:
     capacity: 1
-    policy: 0
 - type: nvidia::gxf::MessageAvailableSchedulingTerm
   parameters:
     receiver: signal
