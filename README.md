@@ -7,7 +7,7 @@ ROS 2 packages based on NVIDIA `libArgus` library for NVIDIA-accelerated CSI cam
 
 ## Overview
 
-The [Isaac ROS Argus Camera](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_argus_camera) module contains an ROS 2 package for sensor
+The Isaac ROS Argus Camera module contains an ROS 2 package for sensor
 processing to output images. Image sensors are connected on CSI and GMSL
 hardware interfaces to Jetson platforms. This package uses dedicated
 hardware engines to accelerate image processing. Output images are used
