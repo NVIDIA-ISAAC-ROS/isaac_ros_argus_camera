@@ -378,6 +378,8 @@ void ArgusCameraNode::postLoadGraphCallback()
     "argus_camera", "nvidia::isaac::ArgusCamera", "fsync_type", fsync_type_);
   getNitrosContext().setParameterBool(
     "argus_camera", "nvidia::isaac::ArgusCamera", "use_hw_timestamp", use_hw_timestamp_);
+  getNitrosContext().setParameterInt32(
+    "argus_camera", "nvidia::isaac::ArgusCamera", "framerate", framerate_);
 }
 
 sensor_msgs::msg::CameraInfo::SharedPtr ArgusCameraNode::loadCameraInfoFromFile(

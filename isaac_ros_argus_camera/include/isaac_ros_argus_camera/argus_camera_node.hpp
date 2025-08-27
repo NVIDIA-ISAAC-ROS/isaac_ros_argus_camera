@@ -90,6 +90,7 @@ protected:
   int camera_id_;
   int module_id_;
   int mode_;
+  int framerate_;
   int fsync_type_;
   bool use_hw_timestamp_;
   std::string camera_link_frame_name_;

@@ -119,6 +119,7 @@ ArgusStereoNode::ArgusStereoNode(const rclcpp::NodeOptions & options)
   camera_id_ = declare_parameter<int>("camera_id", 0);
   module_id_ = declare_parameter<int>("module_id", -1);
   mode_ = declare_parameter<int>("mode", 0);
+  framerate_ = declare_parameter<int>("framerate", 30);
   fsync_type_ = declare_parameter<int>("fsync_type", 1);
   use_hw_timestamp_ = declare_parameter<bool>("use_hw_timestamp", false);
   camera_link_frame_name_ =
